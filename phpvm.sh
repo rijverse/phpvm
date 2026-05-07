@@ -62,10 +62,23 @@ find_php_version_file() {
     return 1
 }
 
+find_composer_json() {
+    local dir="${1:-$PWD}"
+    while :; do
+        if [[ -f "$dir/composer.json" ]]; then
+            echo "$dir/composer.json"
+            return 0
+        fi
+        [[ "$dir" == "/" ]] && break
+        dir=$(dirname "$dir")
+    done
+    return 1
+}
+
 detect_from_composer() {
     local dir="${1:-$PWD}"
-    local composer="$dir/composer.json"
-    [[ -f "$composer" ]] || return 1
+    local composer
+    composer=$(find_composer_json "$dir") || return 1
 
     # pick highest installed PHP minor that the constraint allows.
     # falls back to first version token if no installed match.

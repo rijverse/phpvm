@@ -64,29 +64,60 @@ def get_current():
         return ""
 
 
+def can_sudo_nopasswd():
+    try:
+        r = subprocess.run(
+            ["sudo", "-n", "update-alternatives", "--help"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return r.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
+
 def switch_php(target):
-    _, code = run(["sudo", "update-alternatives", "--set", "php", target])
-    return code == 0
+    if not can_sudo_nopasswd():
+        return False, "needs_sudo"
+    try:
+        r = subprocess.run(
+            ["sudo", "-n", "update-alternatives", "--set", "php", target],
+            capture_output=True, text=True, timeout=15,
+        )
+        return r.returncode == 0, (r.stderr.strip() or None)
+    except subprocess.TimeoutExpired:
+        return False, "timeout"
+    except FileNotFoundError:
+        return False, "no_sudo"
 
 
 def detect_project_php(directory=None):
-    d = Path(directory or os.getcwd()).resolve()
-    while d != d.parent:
+    start = Path(directory or os.getcwd()).resolve()
+
+    d = start
+    while True:
         f = d / ".php-version"
         if f.exists():
             return f.read_text().strip()
+        if d == d.parent:
+            break
         d = d.parent
 
-    composer = Path(directory or os.getcwd()) / "composer.json"
-    if composer.exists():
-        try:
-            data = json.loads(composer.read_text())
-            req = data.get("require", {}).get("php", "")
-            m = re.search(r"(\d+\.\d+)", req)
-            if m:
-                return m.group(1)
-        except Exception:
-            pass
+    d = start
+    while True:
+        composer = d / "composer.json"
+        if composer.exists():
+            try:
+                data = json.loads(composer.read_text())
+                req = data.get("require", {}).get("php", "")
+                m = re.search(r"(\d+\.\d+)", req)
+                if m:
+                    return m.group(1)
+            except Exception:
+                pass
+            return None
+        if d == d.parent:
+            break
+        d = d.parent
     return None
 
 
@@ -137,7 +168,11 @@ class PHPSwitcherTray:
 
     def _tray_label(self):
         current = get_current()
-        return version_label(current) if current else "PHP ?"
+        if current == getattr(self, "_last_current", None):
+            return getattr(self, "_last_label", version_label(current) if current else "PHP ?")
+        self._last_current = current
+        self._last_label = version_label(current) if current else "PHP ?"
+        return self._last_label
 
     def _build_menu(self):
         for item in self.menu.get_children():
@@ -193,17 +228,22 @@ class PHPSwitcherTray:
         self.menu.show_all()
 
     def _on_select(self, _widget, target):
-        def run():
-            ok = switch_php(target)
+        def worker():
+            ok, err = switch_php(target)
             name = Path(target).name
-            GLib.idle_add(self._post_switch, ok, name)
-        threading.Thread(target=run, daemon=True).start()
+            GLib.idle_add(self._post_switch, ok, name, err)
+        threading.Thread(target=worker, daemon=True).start()
 
-    def _post_switch(self, ok, name):
+    def _post_switch(self, ok, name, err=None):
         self._refresh_label()
         self._build_menu()
         if ok:
             notify("phpvm", f"Switched to {name}")
+        elif err == "needs_sudo":
+            notify("phpvm",
+                   "Passwordless sudo not configured.\n"
+                   "Run install.sh or add a /etc/sudoers.d/phpvm rule.",
+                   urgent=True)
         else:
             notify("phpvm", f"Failed to switch to {name}", urgent=True)
         return False
@@ -225,10 +265,10 @@ class PHPSwitcherTray:
             notify("phpvm", f"Already on PHP {proj}")
             return
 
-        def run():
-            ok = switch_php(target)
-            GLib.idle_add(self._post_switch, ok, Path(target).name)
-        threading.Thread(target=run, daemon=True).start()
+        def worker():
+            ok, err = switch_php(target)
+            GLib.idle_add(self._post_switch, ok, Path(target).name, err)
+        threading.Thread(target=worker, daemon=True).start()
 
     def _on_auto_folder(self, _widget):
         dialog = Gtk.FileChooserDialog(
