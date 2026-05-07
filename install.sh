@@ -19,6 +19,13 @@ success() { echo -e "  ${GREEN}✓${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
 err()     { echo -e "  ${RED}✗${NC} $*" >&2; }
 
+UPGRADE=0
+for arg in "$@"; do
+    case "$arg" in
+        --upgrade|-U) UPGRADE=1 ;;
+    esac
+done
+
 echo ""
 echo -e "${BOLD}${BLUE}┌─────────────────────────────────────────┐${NC}"
 echo -e "${BOLD}${BLUE}│            phpvm Installer              │${NC}"
@@ -43,29 +50,44 @@ else
     echo -e "  ${DIM}Run with sudo for system-wide install.${NC}"
 fi
 
-# what to install
-
-echo ""
-echo -e "  ${BOLD}What to install?${NC}"
-echo ""
-echo -e "    ${CYAN}1)${NC} CLI only        ${DIM}(phpvm terminal UI + commands)${NC}"
-echo -e "    ${CYAN}2)${NC} GUI only        ${DIM}(phpvm-gui system tray applet)${NC}"
-echo -e "    ${CYAN}3)${NC} Both            ${DIM}(CLI + GUI)${NC}"
-echo ""
-read -rp "  Choice [1/2/3] (default: 3): " choice
-choice="${choice:-3}"
+# what to install (interactive) or read from metadata (upgrade mode)
 
 INSTALL_CLI=false
 INSTALL_GUI=false
-case "$choice" in
-    1) INSTALL_CLI=true ;;
-    2) INSTALL_GUI=true ;;
-    3) INSTALL_CLI=true; INSTALL_GUI=true ;;
-    *)
-        err "Invalid choice. Aborting."
-        exit 1
-        ;;
-esac
+
+META_FILE="${HOOK_DIR}/install.meta"
+
+if (( UPGRADE )); then
+    if [[ -f "$META_FILE" ]]; then
+        # shellcheck disable=SC1090
+        source "$META_FILE"
+        info "Upgrade mode — replicating prior install (CLI=${INSTALL_CLI}, GUI=${INSTALL_GUI})"
+    else
+        warn "No metadata at ${META_FILE}; assuming both CLI + GUI"
+        INSTALL_CLI=true
+        INSTALL_GUI=true
+    fi
+else
+    echo ""
+    echo -e "  ${BOLD}What to install?${NC}"
+    echo ""
+    echo -e "    ${CYAN}1)${NC} CLI only        ${DIM}(phpvm terminal UI + commands)${NC}"
+    echo -e "    ${CYAN}2)${NC} GUI only        ${DIM}(phpvm-gui system tray applet)${NC}"
+    echo -e "    ${CYAN}3)${NC} Both            ${DIM}(CLI + GUI)${NC}"
+    echo ""
+    read -rp "  Choice [1/2/3] (default: 3): " choice
+    choice="${choice:-3}"
+
+    case "$choice" in
+        1) INSTALL_CLI=true ;;
+        2) INSTALL_GUI=true ;;
+        3) INSTALL_CLI=true; INSTALL_GUI=true ;;
+        *)
+            err "Invalid choice. Aborting."
+            exit 1
+            ;;
+    esac
+fi
 
 echo ""
 mkdir -p "$BIN_DIR"
@@ -130,7 +152,12 @@ echo ""
 echo -e "  ${BOLD}Passwordless sudo for auto-switching${NC}"
 echo -e "  ${DIM}Without this, each auto-switch prompts for your password.${NC}"
 echo ""
-read -rp "  Configure passwordless sudo for update-alternatives? [y/N] " ans
+if (( UPGRADE )); then
+    ans="n"
+    [[ -f /etc/sudoers.d/phpvm ]] && info "Sudoers rule already present — keeping it."
+else
+    read -rp "  Configure passwordless sudo for update-alternatives? [y/N] " ans
+fi
 if [[ "$ans" =~ ^[Yy]$ ]]; then
     SUDOERS="/etc/sudoers.d/phpvm"
     SUDOERS_TMP="$(mktemp)"
@@ -179,7 +206,9 @@ esac
 
 if [[ -n "$RC" ]]; then
     if grep -qF "$HOOK_LINE" "$RC" 2>/dev/null; then
-        warn "Hook already present in ${RC}"
+        (( UPGRADE )) || warn "Hook already present in ${RC}"
+    elif (( UPGRADE )); then
+        info "Skipping shell hook prompt (upgrade mode)"
     else
         read -rp "  Add auto-switch hook to ${RC}? [y/N] " ans
         if [[ "$ans" =~ ^[Yy]$ ]]; then
@@ -208,6 +237,23 @@ if [[ $EUID -ne 0 ]] && [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     warn "${BIN_DIR} not in PATH"
     echo -e "  ${DIM}Add to your shell RC: export PATH=\"\$PATH:${BIN_DIR}\"${NC}"
 fi
+
+# write install metadata for --self-update
+mkdir -p "$HOOK_DIR"
+PHPVM_VERSION_INSTALLED=$(grep -E '^VERSION="' "$SCRIPT_DIR/phpvm.sh" | head -1 | cut -d'"' -f2)
+REPO_URL=""
+if command -v git &>/dev/null && [[ -d "$SCRIPT_DIR/.git" ]]; then
+    REPO_URL=$(git -C "$SCRIPT_DIR" config --get remote.origin.url 2>/dev/null || echo "")
+fi
+cat > "${HOOK_DIR}/install.meta" <<EOF
+INSTALL_CLI=${INSTALL_CLI}
+INSTALL_GUI=${INSTALL_GUI}
+VERSION=${PHPVM_VERSION_INSTALLED}
+REPO_URL=${REPO_URL}
+INSTALLED_AT=$(date -Iseconds)
+BIN_DIR=${BIN_DIR}
+HOOK_DIR=${HOOK_DIR}
+EOF
 
 # done
 

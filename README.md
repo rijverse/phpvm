@@ -60,6 +60,16 @@ The installer asks: **CLI**, **GUI**, or **both** — and offers to wire up the 
 
 > Removing it later: `sudo bash uninstall.sh`
 
+### Upgrading
+
+```bash
+phpvm --self-update                              # uses repo URL captured at install
+phpvm --self-update https://github.com/you/phpvm.git
+phpvm --self-update https://github.com/you/phpvm.git v2.1.0   # specific tag/branch
+```
+
+Re-runs the installer in `--upgrade` mode: same install paths, same CLI/GUI choice, no re-prompting for sudoers or shell hooks. Falls back to a manual repo URL if the original one wasn't recorded (e.g. installed from a tarball).
+
 ### Requirements
 
 - Linux with `update-alternatives` (Debian / Ubuntu)
@@ -81,6 +91,7 @@ The installer asks: **CLI**, **GUI**, or **both** — and offers to wire up the 
 | `phpvm --enable-hook [shell]` | Add auto-switch hook to bash/zsh/fish |
 | `phpvm --disable-hook [shell]` | Remove the hook (creates a backup) |
 | `phpvm --window` | Launch a detached GTK picker window (frees the terminal) |
+| `phpvm --self-update` | Pull latest from git and re-run installer non-interactively |
 | `phpvm --help` | Full reference |
 
 **TUI keys** &nbsp;&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> / <kbd>k</kbd> <kbd>j</kbd> move &nbsp;·&nbsp; <kbd>Enter</kbd> switch &nbsp;·&nbsp; <kbd>p</kbd> pin &nbsp;·&nbsp; <kbd>q</kbd> quit

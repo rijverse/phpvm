@@ -407,6 +407,80 @@ cmd_disable_hook() {
     echo -e "  ${DIM}Reload: source ${rc}${NC}"
 }
 
+cmd_self_update() {
+    local repo_arg="${1:-}"
+    local ref="${2:-main}"
+
+    if ! command -v git &>/dev/null; then
+        echo -e "${RED}git not found.${NC}" >&2
+        exit 1
+    fi
+
+    local hook_dir
+    if [[ -d /etc/phpvm ]]; then
+        hook_dir=/etc/phpvm
+    elif [[ -d "$HOME/.phpvm" ]]; then
+        hook_dir="$HOME/.phpvm"
+    fi
+
+    local meta_repo=""
+    if [[ -n "$hook_dir" && -f "${hook_dir}/install.meta" ]]; then
+        # shellcheck disable=SC1090,SC1091
+        meta_repo=$(grep -E '^REPO_URL=' "${hook_dir}/install.meta" | cut -d= -f2-)
+    fi
+
+    local repo="${repo_arg:-${PHPVM_REPO:-$meta_repo}}"
+    if [[ -z "$repo" ]]; then
+        echo -e "${RED}No repo URL.${NC}" >&2
+        echo -e "${DIM}Usage: phpvm --self-update [URL] [REF]${NC}" >&2
+        echo -e "${DIM}Or set PHPVM_REPO env var, or re-install from a git clone.${NC}" >&2
+        exit 1
+    fi
+
+    local tmp
+    tmp=$(mktemp -d)
+    trap 'rm -rf "$tmp"' EXIT
+
+    echo -e "  ${BLUE}→${NC} Fetching ${BOLD}${repo}${NC} @ ${ref}"
+    if [[ -d "$repo" ]]; then
+        cp -r "$repo/." "$tmp/"
+    elif ! git clone --depth 1 --branch "$ref" "$repo" "$tmp" >/dev/null 2>&1; then
+        if ! git clone --depth 1 "$repo" "$tmp" >/dev/null 2>&1; then
+            echo -e "${RED}✗${NC} Clone failed." >&2
+            exit 1
+        fi
+        if [[ "$ref" != "main" && "$ref" != "master" ]]; then
+            (cd "$tmp" && git fetch origin "$ref" --depth 1 && git checkout FETCH_HEAD) >/dev/null 2>&1 \
+                || { echo -e "${RED}✗${NC} Checkout of ${ref} failed." >&2; exit 1; }
+        fi
+    fi
+
+    if [[ ! -f "$tmp/install.sh" || ! -f "$tmp/phpvm.sh" ]]; then
+        echo -e "${RED}✗${NC} Source missing install.sh or phpvm.sh." >&2
+        exit 1
+    fi
+
+    local new_ver
+    new_ver=$(grep -E '^VERSION="' "$tmp/phpvm.sh" | head -1 | cut -d'"' -f2)
+    echo -e "  ${BLUE}→${NC} Current: ${BOLD}${VERSION}${NC}   New: ${BOLD}${new_ver}${NC}"
+
+    if [[ "$VERSION" == "$new_ver" ]]; then
+        read -rp "  Already on ${VERSION}. Reinstall anyway? [y/N] " ans
+        [[ "$ans" =~ ^[Yy]$ ]] || { echo -e "${DIM}Cancelled.${NC}"; exit 0; }
+    fi
+
+    local is_system=0
+    [[ -f /usr/local/bin/phpvm || -f /usr/local/bin/phpvm-gui || -d /etc/phpvm ]] && is_system=1
+
+    if (( is_system )) && [[ $EUID -ne 0 ]]; then
+        sudo bash "$tmp/install.sh" --upgrade
+    else
+        bash "$tmp/install.sh" --upgrade
+    fi
+
+    echo -e "  ${GREEN}✓${NC} Updated to ${BOLD}${new_ver}${NC}"
+}
+
 cmd_window() {
     if ! command -v phpvm-gui &>/dev/null; then
         echo -e "${RED}phpvm-gui not installed.${NC}" >&2
@@ -431,6 +505,7 @@ cmd_help() {
     echo -e "  phpvm --enable-hook [shell]  Add auto-switch hook to shell rc (bash/zsh/fish)"
     echo -e "  phpvm --disable-hook [shell] Remove auto-switch hook from shell rc"
     echo -e "  phpvm --window               Open detached GTK picker window (needs phpvm-gui)"
+    echo -e "  phpvm --self-update [URL] [REF]  Pull latest from git and re-run installer"
     echo -e "  phpvm --version              Show tool version"
     echo -e "  phpvm --help                 This help"
     echo ""
@@ -686,6 +761,9 @@ case "$CMD" in
         ;;
     -w | --window)
         cmd_window
+        ;;
+    --self-update)
+        cmd_self_update "${1:-}" "${2:-main}"
         ;;
     -v | --version)
         echo "phpvm $VERSION"
