@@ -21,8 +21,10 @@ echo -e "${BOLD}${BLUE}│            phpvm Uninstaller            │${NC}"
 echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
 echo ""
 
-# Detect install location
-if [[ -f "/usr/local/bin/phpvm" ]]; then
+# detect install location, prefer system paths if any system artifact exists
+if [[ -f "/usr/local/bin/phpvm" || -f "/usr/local/bin/phpvm-gui" \
+   || -d "/etc/phpvm" || -f "/etc/sudoers.d/phpvm" \
+   || -f "/usr/share/applications/phpvm-gui.desktop" ]]; then
     BIN_DIR="/usr/local/bin"
     HOOK_DIR="/etc/phpvm"
     SUDOERS="/etc/sudoers.d/phpvm"
@@ -69,14 +71,22 @@ do
     success "Removed ${desktop}"
 done
 
-# Remove shell hook lines
+# remove shell hook lines (only our exact lines, never a blanket /phpvm/ wipe)
+clean_rc() {
+    local rc="$1"
+    [[ -f "$rc" ]] || return 0
+    grep -qE 'php-auto\.(bash|zsh|fish)|# phpvm auto-switch' "$rc" || return 0
+    cp -- "$rc" "${rc}.phpvm-backup"
+    # delete our marker comment + any source line pointing at our hook files
+    sed -i \
+        -e '/^# phpvm auto-switch$/d' \
+        -e '\#source .*/php-auto\.\(bash\|zsh\|fish\)#d' \
+        "$rc"
+    success "Cleaned hook from ${rc}  ${DIM}(backup: ${rc}.phpvm-backup)${NC}"
+}
+
 for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.config/fish/config.fish"; do
-    [[ -f "$rc" ]] || continue
-    if grep -q "phpvm" "$rc"; then
-        sed -i '/# phpvm auto-switch/d' "$rc"
-        sed -i '/phpvm/d' "$rc"
-        success "Cleaned hook from ${rc}"
-    fi
+    clean_rc "$rc"
 done
 
 echo ""

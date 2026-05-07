@@ -80,17 +80,20 @@ phpvm walks up the directory tree looking for `.php-version`. If none is found i
 
 ### Shell hook
 
-Source the hook in your shell RC so phpvm checks the version on every `cd`:
+Source the hook in your shell RC so phpvm checks the version on every `cd`. The hook directory is `/etc/phpvm` for system installs and `~/.phpvm` for user installs.
 
 ```bash
-# ~/.bashrc
+# ~/.bashrc (system / user install)
 source /etc/phpvm/php-auto.bash
+source ~/.phpvm/php-auto.bash
 
 # ~/.zshrc
 source /etc/phpvm/php-auto.zsh
+source ~/.phpvm/php-auto.zsh
 
 # ~/.config/fish/conf.d/phpvm.fish
 source /etc/phpvm/php-auto.fish
+source ~/.phpvm/php-auto.fish
 ```
 
 The installer can add this automatically.

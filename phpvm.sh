@@ -51,11 +51,12 @@ find_version_by_query() {
 
 find_php_version_file() {
     local dir="${1:-$PWD}"
-    while [[ "$dir" != "/" ]]; do
+    while :; do
         if [[ -f "$dir/.php-version" ]]; then
             echo "$dir/.php-version"
             return 0
         fi
+        [[ "$dir" == "/" ]] && break
         dir=$(dirname "$dir")
     done
     return 1
@@ -66,16 +67,76 @@ detect_from_composer() {
     local composer="$dir/composer.json"
     [[ -f "$composer" ]] || return 1
 
+    # pick highest installed PHP minor that the constraint allows.
+    # falls back to first version token if no installed match.
+    local installed
+    installed=$(get_php_versions | sed -E 's|.*/php([0-9]+\.[0-9]+)$|\1|' | sort -V | tr '\n' ' ')
+
     if command -v python3 &>/dev/null; then
-        python3 - "$composer" <<'PYEOF' 2>/dev/null
+        python3 - "$composer" "$installed" <<'PYEOF' 2>/dev/null
 import json, sys, re
 try:
     with open(sys.argv[1]) as f:
         data = json.load(f)
-    php_req = data.get('require', {}).get('php', '')
-    m = re.search(r'(\d+\.\d+)', php_req)
-    if m:
-        print(m.group(1))
+    req = data.get('require', {}).get('php', '')
+    if not req:
+        sys.exit(0)
+
+    installed = [v for v in sys.argv[2].split() if v]
+
+    def parse(v):
+        return tuple(int(x) for x in v.split('.'))
+
+    def matches(ver, expr):
+        ver_t = parse(ver)
+        for clause in expr.split('|'):
+            clause = clause.strip().lstrip('v')
+            if not clause:
+                continue
+            ok = True
+            for part in re.split(r'\s*,\s*|\s+', clause):
+                if not part:
+                    continue
+                m = re.match(r'^(\^|~|>=|<=|>|<|=)?\s*v?(\d+(?:\.\d+){0,2})', part)
+                if not m:
+                    ok = False
+                    break
+                op = m.group(1) or '='
+                bound = parse(m.group(2))
+                while len(bound) < 2:
+                    bound = bound + (0,)
+                bv = bound[:2]
+                vt = ver_t[:2]
+                if op == '^':
+                    if vt < bv or vt[0] != bv[0]:
+                        ok = False
+                        break
+                elif op == '~':
+                    if len(bound) >= 2:
+                        if vt < bv or vt[0] != bv[0]:
+                            ok = False
+                            break
+                elif op == '>=':
+                    if vt < bv: ok = False; break
+                elif op == '<=':
+                    if vt > bv: ok = False; break
+                elif op == '>':
+                    if vt <= bv: ok = False; break
+                elif op == '<':
+                    if vt >= bv: ok = False; break
+                else:
+                    if vt != bv: ok = False; break
+            if ok:
+                return True
+        return False
+
+    matched = [v for v in installed if matches(v, req)]
+    if matched:
+        print(sorted(matched, key=parse)[-1])
+    else:
+        m = re.search(r'(\d+\.\d+)', req)
+        if m:
+            print(m.group(1))
 except Exception:
     pass
 PYEOF
@@ -196,7 +257,7 @@ cmd_auto() {
     local current_name
     current_name=$(basename "$current")
 
-    if [[ "$current_name" == "php${ver}" ]] || [[ "$current_name" == "$ver" ]]; then
+    if [[ "$current_name" == "php${ver}" ]]; then
         [[ "$quiet" != "true" ]] && echo -e "${DIM}Already on PHP ${ver}.${NC}"
         return 0
     fi
@@ -209,10 +270,16 @@ cmd_auto() {
     fi
 
     do_switch "$target" "$quiet"
+    local rc=$?
 
     if [[ "$quiet" == "true" ]] && command -v notify-send &>/dev/null; then
-        notify-send "phpvm" "Switched to PHP ${ver}" --icon=dialog-information 2>/dev/null
+        if [[ "$rc" -eq 0 ]]; then
+            notify-send "phpvm" "Switched to PHP ${ver}" --icon=dialog-information 2>/dev/null
+        else
+            notify-send -u critical "phpvm" "Failed to switch to PHP ${ver}" --icon=dialog-error 2>/dev/null
+        fi
     fi
+    return "$rc"
 }
 
 cmd_set_project() {
@@ -242,9 +309,10 @@ cmd_help() {
     echo -e "  phpvm --help                 This help"
     echo ""
     echo -e "${BOLD}Shell hook (auto-switch on cd):${NC}"
-    echo -e "  Bash: ${DIM}echo 'source /etc/phpvm/php-auto.bash' >> ~/.bashrc${NC}"
-    echo -e "  Zsh:  ${DIM}echo 'source /etc/phpvm/php-auto.zsh'  >> ~/.zshrc${NC}"
-    echo -e "  Fish: ${DIM}copy shell/php-auto.fish to ~/.config/fish/conf.d/${NC}"
+    echo -e "  ${DIM}Hook dir: /etc/phpvm (system install) or ~/.phpvm (user install)${NC}"
+    echo -e "  Bash: ${DIM}echo 'source <hook-dir>/php-auto.bash' >> ~/.bashrc${NC}"
+    echo -e "  Zsh:  ${DIM}echo 'source <hook-dir>/php-auto.zsh'  >> ~/.zshrc${NC}"
+    echo -e "  Fish: ${DIM}cp <hook-dir>/php-auto.fish ~/.config/fish/conf.d/${NC}"
     echo ""
     echo -e "${BOLD}Project config:${NC}"
     echo -e "  .php-version    Plain text file with PHP version (e.g. ${CYAN}8.2${NC})"

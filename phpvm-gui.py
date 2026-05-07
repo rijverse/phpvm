@@ -7,6 +7,7 @@
 import json
 import os
 import re
+import shutil
 import signal
 import subprocess
 import sys
@@ -214,7 +215,7 @@ class PHPSwitcherTray:
             return
 
         versions = get_versions()
-        target = next((v for v in versions if Path(v).name in (f"php{proj}", proj)), None)
+        target = next((v for v in versions if Path(v).name == f"php{proj}"), None)
 
         if not target:
             notify("phpvm", f"PHP {proj} required but not installed", urgent=True)
@@ -238,12 +239,15 @@ class PHPSwitcherTray:
             Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
             Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
         )
-        if dialog.run() == Gtk.ResponseType.OK:
-            folder = dialog.get_filename()
-            dialog.destroy()
+        dialog.set_modal(False)
+        dialog.connect("response", self._on_folder_response)
+        dialog.show()
+
+    def _on_folder_response(self, dialog, response):
+        folder = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if folder:
             self._on_auto(None, directory=folder)
-        else:
-            dialog.destroy()
 
     def _on_tui(self, _widget):
         terminals = [
@@ -254,7 +258,7 @@ class PHPSwitcherTray:
             ["x-terminal-emulator", "-e", "phpvm"],
         ]
         for cmd in terminals:
-            if subprocess.run(["which", cmd[0]], capture_output=True).returncode == 0:
+            if shutil.which(cmd[0]):
                 subprocess.Popen(cmd)
                 return
         notify("phpvm", "No terminal emulator found", urgent=True)

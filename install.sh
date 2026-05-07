@@ -7,6 +7,7 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
+CYAN='\033[0;36m'
 BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
@@ -24,7 +25,7 @@ echo -e "${BOLD}${BLUE}│            phpvm Installer              │${NC}"
 echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
 echo ""
 
-# Determine install paths
+# determine install paths
 if [[ $EUID -eq 0 ]]; then
     BIN_DIR="/usr/local/bin"
     HOOK_DIR="/etc/phpvm"
@@ -35,7 +36,10 @@ else
     HOOK_DIR="$HOME/.phpvm"
     DESKTOP_DIR="$HOME/.local/share/applications"
     CURRENT_USER="$USER"
-    warn "Not root — installing to ${BIN_DIR}"
+    warn "Not root — installing to user paths:"
+    echo -e "  ${DIM}  bin     ${BIN_DIR}${NC}"
+    echo -e "  ${DIM}  hooks   ${HOOK_DIR}${NC}"
+    echo -e "  ${DIM}  desktop ${DESKTOP_DIR}${NC}"
     echo -e "  ${DIM}Run with sudo for system-wide install.${NC}"
 fi
 
@@ -129,19 +133,22 @@ echo ""
 read -rp "  Configure passwordless sudo for update-alternatives? [y/N] " ans
 if [[ "$ans" =~ ^[Yy]$ ]]; then
     SUDOERS="/etc/sudoers.d/phpvm"
+    SUDOERS_TMP="$(mktemp)"
     RULE="${CURRENT_USER} ALL=(ALL) NOPASSWD: /usr/bin/update-alternatives --set php /usr/bin/php*"
-    if [[ $EUID -eq 0 ]]; then
-        echo "$RULE" > "$SUDOERS"
-        chmod 440 "$SUDOERS"
-    else
-        echo "$RULE" | sudo tee "$SUDOERS" > /dev/null
-        sudo chmod 440 "$SUDOERS"
-    fi
-    if sudo visudo -c -f "$SUDOERS" &>/dev/null; then
+    echo "$RULE" > "$SUDOERS_TMP"
+    chmod 440 "$SUDOERS_TMP"
+    if sudo visudo -c -f "$SUDOERS_TMP" &>/dev/null; then
+        if [[ $EUID -eq 0 ]]; then
+            mv "$SUDOERS_TMP" "$SUDOERS"
+            chown root:root "$SUDOERS"
+        else
+            sudo install -o root -g root -m 440 "$SUDOERS_TMP" "$SUDOERS"
+            rm -f "$SUDOERS_TMP"
+        fi
         success "Sudoers rule added → ${SUDOERS}"
     else
-        err "Sudoers validation failed — removing invalid file"
-        rm -f "$SUDOERS"
+        err "Sudoers validation failed — not installed"
+        rm -f "$SUDOERS_TMP"
     fi
 fi
 
@@ -171,7 +178,7 @@ case "$SHELL_NAME" in
 esac
 
 if [[ -n "$RC" ]]; then
-    if grep -qF "phpvm" "$RC" 2>/dev/null; then
+    if grep -qF "$HOOK_LINE" "$RC" 2>/dev/null; then
         warn "Hook already present in ${RC}"
     else
         read -rp "  Add auto-switch hook to ${RC}? [y/N] " ans
