@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-"""phpvm - PHP Version Manager GUI
+"""phpvm system tray GUI — requires python3-gi, GTK3, and AppIndicator3.
 
-Requirements:
-    sudo apt install python3-gi gir1.2-gtk-3.0
-    sudo apt install gir1.2-ayatana-appindicator3-0.1
-    # or: gir1.2-appindicator3-0.1
+    sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
 """
 
 import json

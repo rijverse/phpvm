@@ -15,7 +15,7 @@ REVERSE='\033[7m'
 
 selected_index=0
 
-# ── Core helpers ──────────────────────────────────────────────────────────────
+# helpers
 
 get_php_versions() {
     update-alternatives --list php 2>/dev/null | sort -V
@@ -47,7 +47,7 @@ find_version_by_query() {
     return 1
 }
 
-# ── Project detection ─────────────────────────────────────────────────────────
+# project detection
 
 find_php_version_file() {
     local dir="${1:-$PWD}"
@@ -105,7 +105,7 @@ detect_project_php() {
     return 1
 }
 
-# ── Switch helper ─────────────────────────────────────────────────────────────
+# switching
 
 do_switch() {
     local target="$1"
@@ -125,7 +125,7 @@ do_switch() {
     return "$code"
 }
 
-# ── CLI commands ──────────────────────────────────────────────────────────────
+# cli commands
 
 cmd_list() {
     require_update_alternatives
@@ -252,7 +252,7 @@ cmd_help() {
     echo ""
 }
 
-# ── TUI ───────────────────────────────────────────────────────────────────────
+# tui
 
 draw_menu() {
     local -n _versions=$1
@@ -450,7 +450,7 @@ tui_main() {
     echo -e "${DIM}phpvm closed.${NC}"
 }
 
-# ── Entry point ───────────────────────────────────────────────────────────────
+# entry point
 
 CMD="${1:-}"
 shift 2>/dev/null || true

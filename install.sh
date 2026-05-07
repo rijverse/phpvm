@@ -39,7 +39,7 @@ else
     echo -e "  ${DIM}Run with sudo for system-wide install.${NC}"
 fi
 
-# ── Component selection ───────────────────────────────────────────────────────
+# what to install
 
 echo ""
 echo -e "  ${BOLD}What to install?${NC}"
@@ -66,7 +66,7 @@ esac
 echo ""
 mkdir -p "$BIN_DIR"
 
-# ── CLI ───────────────────────────────────────────────────────────────────────
+# cli
 
 if [[ "$INSTALL_CLI" == "true" ]]; then
     info "Installing CLI → ${BIN_DIR}/phpvm"
@@ -75,7 +75,7 @@ if [[ "$INSTALL_CLI" == "true" ]]; then
     success "CLI installed"
 fi
 
-# ── GUI ───────────────────────────────────────────────────────────────────────
+# gui
 
 if [[ "$INSTALL_GUI" == "true" ]]; then
     if ! command -v python3 &>/dev/null; then
@@ -110,7 +110,7 @@ fi
 
 if [[ "$INSTALL_CLI" == "true" ]]; then
 
-# ── Shell hooks ───────────────────────────────────────────────────────────────
+# shell hooks
 
 echo ""
 info "Installing shell hooks → ${HOOK_DIR}/"
@@ -120,7 +120,7 @@ cp "$SCRIPT_DIR/shell/php-auto.zsh"  "$HOOK_DIR/"
 cp "$SCRIPT_DIR/shell/php-auto.fish" "$HOOK_DIR/"
 success "Shell hooks installed"
 
-# ── Sudoers ───────────────────────────────────────────────────────────────────
+# passwordless sudo
 
 echo ""
 echo -e "  ${BOLD}Passwordless sudo for auto-switching${NC}"
@@ -145,7 +145,7 @@ if [[ "$ans" =~ ^[Yy]$ ]]; then
     fi
 fi
 
-# ── Shell hook in RC ──────────────────────────────────────────────────────────
+# add hook to shell rc
 
 echo ""
 echo -e "  ${BOLD}Auto-switch hook${NC}"
@@ -194,7 +194,7 @@ fi
 
 fi # INSTALL_CLI
 
-# ── PATH warning ──────────────────────────────────────────────────────────────
+# path check
 
 if [[ $EUID -ne 0 ]] && [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo ""
@@ -202,7 +202,7 @@ if [[ $EUID -ne 0 ]] && [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
     echo -e "  ${DIM}Add to your shell RC: export PATH=\"\$PATH:${BIN_DIR}\"${NC}"
 fi
 
-# ── Done ──────────────────────────────────────────────────────────────────────
+# done
 
 echo ""
 echo -e "${GREEN}${BOLD}Installation complete!${NC}"
