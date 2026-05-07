@@ -1,6 +1,19 @@
+<div align="center">
+
 # phpvm
 
-TUI and system tray GUI for switching PHP versions on Linux. Drop a `.php-version` file in a project root and it switches automatically when you `cd` in.
+**A fast PHP version switcher for Linux — TUI + system tray GUI.**
+
+Drop a `.php-version` file in any project. `cd` in, the right PHP is already loaded.
+
+![Bash](https://img.shields.io/badge/Bash-4%2B-1f425f?logo=gnubash&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3-3776ab?logo=python&logoColor=white)
+![Linux](https://img.shields.io/badge/Linux-update--alternatives-fcc624?logo=linux&logoColor=black)
+![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
+
+---
 
 ```
 ┌─────────────────────────────────────────┐
@@ -20,118 +33,126 @@ TUI and system tray GUI for switching PHP versions on Linux. Drop a `.php-versio
     php8.3
 ```
 
-## Requirements
+---
 
-- Linux with `update-alternatives` (Debian/Ubuntu, anything apt-based)
-- Bash 4+
-- GUI only: `python3-gi`, GTK3, AppIndicator3
+## ✨ Features
 
-## Install
+| | |
+|---|---|
+| 🖥️ **Interactive TUI** | Arrow-key version picker right in your terminal |
+| 🖼️ **System tray GUI** | One-click switching from your panel |
+| 📁 **Per-project PHP** | `.php-version` or `composer.json` driven |
+| ⚡ **Auto-switch on `cd`** | Bash / Zsh / Fish hooks, no manual `--set` |
+| 🔇 **Silent operation** | Optional passwordless sudo for zero prompts |
+| 🧹 **Clean uninstall** | Removes itself, backs up your shell rc |
+
+---
+
+## 🚀 Quick install
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/phpvm.git
-cd phpvm
-sudo bash install.sh
+cd phpvm && sudo bash install.sh
 ```
 
-The installer asks whether you want CLI, GUI, or both. It also handles the shell hook setup and can configure passwordless sudo so version switching doesn't prompt you on every `cd`.
+The installer asks: **CLI**, **GUI**, or **both** — and offers to wire up the shell hook and passwordless sudo.
 
-To remove everything: `sudo bash uninstall.sh`
+> Removing it later: `sudo bash uninstall.sh`
 
-## CLI
+### Requirements
 
-```bash
-phpvm                      # interactive TUI
-phpvm --list               # show installed versions
-phpvm --current            # show what's active
-phpvm --set 8.2            # switch to 8.2
-phpvm --auto               # switch based on project config
-phpvm --set-project 8.2    # write .php-version in cwd
-phpvm --enable-hook        # add auto-switch hook to current shell's rc
-phpvm --disable-hook       # remove auto-switch hook from current shell's rc
-phpvm --help
-```
+- Linux with `update-alternatives` (Debian / Ubuntu)
+- Bash 4+
+- GUI extras: `python3-gi`, GTK3, AppIndicator3
 
-**TUI keys:** `↑`/`↓` or `k`/`j` — move | `Enter` — switch | `p` — pin version to project | `q` — quit
+---
 
-## System tray
+## 💻 CLI
 
-```bash
-phpvm-gui
-```
+| Command | Action |
+|---|---|
+| `phpvm` | Open the interactive TUI |
+| `phpvm --list` | Show all installed PHP versions |
+| `phpvm --current` | Show what's active right now |
+| `phpvm --set 8.2` | Switch globally to PHP 8.2 |
+| `phpvm --auto` | Auto-switch from `.php-version` / `composer.json` |
+| `phpvm --set-project 8.2` | Pin this directory to PHP 8.2 |
+| `phpvm --enable-hook [shell]` | Add auto-switch hook to bash/zsh/fish |
+| `phpvm --disable-hook [shell]` | Remove the hook (creates a backup) |
+| `phpvm --help` | Full reference |
 
-Shows active PHP version in the system tray. Click to switch versions or run auto-detect against a project folder.
+**TUI keys** &nbsp;&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> / <kbd>k</kbd> <kbd>j</kbd> move &nbsp;·&nbsp; <kbd>Enter</kbd> switch &nbsp;·&nbsp; <kbd>p</kbd> pin &nbsp;·&nbsp; <kbd>q</kbd> quit
 
-Install the GTK dependencies first:
+---
+
+## 🖼️ System tray (`phpvm-gui`)
+
+Tray applet that shows the active version, lets you switch versions in one click, and runs auto-detect against any folder.
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
+phpvm-gui
 ```
 
-## Per-project PHP
+---
 
-Put a `.php-version` file in your project root:
+## 📁 Per-project PHP
 
 ```bash
 echo "8.1" > .php-version
-# or let phpvm write it
+# or
 phpvm --set-project 8.1
 ```
 
-phpvm walks up the directory tree looking for `.php-version`. If none is found it falls back to the `require.php` constraint in `composer.json`.
+phpvm walks up the directory tree looking for `.php-version`. If it doesn't find one, it falls back to `require.php` in `composer.json` and picks the highest installed version that satisfies the constraint (`^`, `~`, `>=`, ranges, `|` — all supported).
 
-### Shell hook
+---
 
-Easiest way:
+## ⚙️ Shell hook (auto-switch on `cd`)
 
-```bash
-phpvm --enable-hook            # auto-detects current shell ($SHELL)
-phpvm --enable-hook zsh        # explicit shell
-phpvm --disable-hook           # undo (creates a .phpvm-backup of your rc)
-```
-
-Or do it manually. Pick the line matching your install mode — `/etc/phpvm` for system-wide installs (`sudo bash install.sh`), `~/.phpvm` for user installs.
-
-**System install** (`/etc/phpvm`):
+The easy way:
 
 ```bash
-# ~/.bashrc
-source /etc/phpvm/php-auto.bash
-
-# ~/.zshrc
-source /etc/phpvm/php-auto.zsh
-
-# ~/.config/fish/conf.d/phpvm.fish
-source /etc/phpvm/php-auto.fish
+phpvm --enable-hook            # auto-detects $SHELL
+phpvm --enable-hook zsh        # or be explicit
+phpvm --disable-hook           # undo (rc backed up)
 ```
 
-**User install** (`~/.phpvm`):
+<details>
+<summary><strong>Manual setup</strong></summary>
+
+Pick the line for your install mode — `/etc/phpvm` for system installs, `~/.phpvm` for user installs:
 
 ```bash
-# ~/.bashrc
-source ~/.phpvm/php-auto.bash
+# Bash
+source /etc/phpvm/php-auto.bash      # or  ~/.phpvm/php-auto.bash
 
-# ~/.zshrc
-source ~/.phpvm/php-auto.zsh
+# Zsh
+source /etc/phpvm/php-auto.zsh       # or  ~/.phpvm/php-auto.zsh
 
-# ~/.config/fish/conf.d/phpvm.fish
-source ~/.phpvm/php-auto.fish
+# Fish
+source /etc/phpvm/php-auto.fish      # or  ~/.phpvm/php-auto.fish
 ```
 
-The installer can add this automatically.
+</details>
 
-### Passwordless sudo
+---
 
-Every version switch runs `sudo update-alternatives`. To make that silent, add a sudoers rule (the installer offers to do this):
+## 🔇 Passwordless sudo
+
+Every switch calls `sudo update-alternatives`. To skip the password prompt, drop a sudoers rule (the installer offers this):
 
 ```
 # /etc/sudoers.d/phpvm
 username ALL=(ALL) NOPASSWD: /usr/bin/update-alternatives --set php /usr/bin/php*
 ```
 
-## Registering PHP versions
+---
 
-If phpvm shows no versions, you need to register them with `update-alternatives` first:
+<details>
+<summary><strong>📦 Registering PHP versions with update-alternatives</strong></summary>
+
+If `phpvm` reports no versions, register them first:
 
 ```bash
 sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.3 83
@@ -139,7 +160,10 @@ sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.2 82
 sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.1 81
 ```
 
-## Project layout
+</details>
+
+<details>
+<summary><strong>🗂️ Project layout</strong></summary>
 
 ```
 phpvm/
@@ -153,10 +177,14 @@ phpvm/
 └── uninstall.sh
 ```
 
-## Contributing
+</details>
 
-See [CONTRIBUTING.md](CONTRIBUTING.md).
+---
 
-## License
+## 🤝 Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md). Patches welcome — keep it dependency-free and `shellcheck`-clean.
+
+## 📄 License
 
 [MIT](LICENSE)
