@@ -1,0 +1,28 @@
+# IDE
+.idea/
+.vscode/
+
+# Editor temps
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Build / dist
+dist/
+*.egg-info/
+
+# Local config
+.env
+
