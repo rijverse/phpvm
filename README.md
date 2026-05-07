@@ -47,6 +47,8 @@ phpvm --current            # show what's active
 phpvm --set 8.2            # switch to 8.2
 phpvm --auto               # switch based on project config
 phpvm --set-project 8.2    # write .php-version in cwd
+phpvm --enable-hook        # add auto-switch hook to current shell's rc
+phpvm --disable-hook       # remove auto-switch hook from current shell's rc
 phpvm --help
 ```
 
@@ -80,19 +82,39 @@ phpvm walks up the directory tree looking for `.php-version`. If none is found i
 
 ### Shell hook
 
-Source the hook in your shell RC so phpvm checks the version on every `cd`. The hook directory is `/etc/phpvm` for system installs and `~/.phpvm` for user installs.
+Easiest way:
 
 ```bash
-# ~/.bashrc (system / user install)
+phpvm --enable-hook            # auto-detects current shell ($SHELL)
+phpvm --enable-hook zsh        # explicit shell
+phpvm --disable-hook           # undo (creates a .phpvm-backup of your rc)
+```
+
+Or do it manually. Pick the line matching your install mode — `/etc/phpvm` for system-wide installs (`sudo bash install.sh`), `~/.phpvm` for user installs.
+
+**System install** (`/etc/phpvm`):
+
+```bash
+# ~/.bashrc
 source /etc/phpvm/php-auto.bash
-source ~/.phpvm/php-auto.bash
 
 # ~/.zshrc
 source /etc/phpvm/php-auto.zsh
-source ~/.phpvm/php-auto.zsh
 
 # ~/.config/fish/conf.d/phpvm.fish
 source /etc/phpvm/php-auto.fish
+```
+
+**User install** (`~/.phpvm`):
+
+```bash
+# ~/.bashrc
+source ~/.phpvm/php-auto.bash
+
+# ~/.zshrc
+source ~/.phpvm/php-auto.zsh
+
+# ~/.config/fish/conf.d/phpvm.fish
 source ~/.phpvm/php-auto.fish
 ```
 

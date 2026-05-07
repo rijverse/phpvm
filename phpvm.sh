@@ -308,6 +308,105 @@ cmd_set_project() {
     echo -e "${GREEN}✓${NC} Created ${BOLD}.php-version${NC} → ${CYAN}${ver}${NC}"
 }
 
+detect_hook_dir() {
+    if [[ -d /etc/phpvm ]]; then
+        echo /etc/phpvm
+    elif [[ -d "$HOME/.phpvm" ]]; then
+        echo "$HOME/.phpvm"
+    else
+        return 1
+    fi
+}
+
+resolve_shell() {
+    local shell="$1"
+    [[ -z "$shell" ]] && shell=$(basename "${SHELL:-bash}")
+    case "$shell" in
+        bash|zsh|fish) echo "$shell"; return 0 ;;
+        *) return 1 ;;
+    esac
+}
+
+shell_rc_path() {
+    case "$1" in
+        bash) echo "$HOME/.bashrc" ;;
+        zsh)  echo "$HOME/.zshrc"  ;;
+        fish) echo "$HOME/.config/fish/config.fish" ;;
+    esac
+}
+
+cmd_enable_hook() {
+    local shell
+    shell=$(resolve_shell "${1:-}") || {
+        echo -e "${RED}Unsupported shell: ${1:-unknown}${NC}" >&2
+        echo -e "${DIM}Use bash, zsh, or fish.${NC}" >&2
+        exit 1
+    }
+
+    local hook_dir
+    hook_dir=$(detect_hook_dir) || {
+        echo -e "${RED}Hook directory not found.${NC}" >&2
+        echo -e "${DIM}Expected /etc/phpvm or ~/.phpvm — re-run install.sh.${NC}" >&2
+        exit 1
+    }
+
+    local hook_file="${hook_dir}/php-auto.${shell}"
+    if [[ ! -f "$hook_file" ]]; then
+        echo -e "${RED}Hook file missing: ${hook_file}${NC}" >&2
+        exit 1
+    fi
+
+    local rc
+    rc=$(shell_rc_path "$shell")
+    local line="source ${hook_file}"
+
+    if [[ -f "$rc" ]] && grep -qF "$line" "$rc"; then
+        echo -e "${YELLOW}!${NC} Already enabled in ${BOLD}${rc}${NC}"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$rc")"
+    {
+        echo ""
+        echo "# phpvm auto-switch"
+        echo "$line"
+    } >> "$rc"
+
+    echo -e "${GREEN}✓${NC} Hook enabled for ${BOLD}${shell}${NC} → ${rc}"
+    echo -e "  ${DIM}Reload: source ${rc}${NC}"
+}
+
+cmd_disable_hook() {
+    local shell
+    shell=$(resolve_shell "${1:-}") || {
+        echo -e "${RED}Unsupported shell: ${1:-unknown}${NC}" >&2
+        exit 1
+    }
+
+    local rc
+    rc=$(shell_rc_path "$shell")
+
+    if [[ ! -f "$rc" ]]; then
+        echo -e "${DIM}No ${rc}.${NC}"
+        return 0
+    fi
+
+    if ! grep -qE 'php-auto\.(bash|zsh|fish)|# phpvm auto-switch' "$rc"; then
+        echo -e "${DIM}Hook not present in ${rc}.${NC}"
+        return 0
+    fi
+
+    cp -- "$rc" "${rc}.phpvm-backup"
+    sed -i \
+        -e '/^# phpvm auto-switch$/d' \
+        -e '\#source .*/php-auto\.\(bash\|zsh\|fish\)#d' \
+        "$rc"
+
+    echo -e "${GREEN}✓${NC} Hook disabled for ${BOLD}${shell}${NC} → ${rc}"
+    echo -e "  ${DIM}Backup: ${rc}.phpvm-backup${NC}"
+    echo -e "  ${DIM}Reload: source ${rc}${NC}"
+}
+
 cmd_help() {
     echo -e "${BOLD}${BLUE}phpvm${NC} v${VERSION}"
     echo ""
@@ -318,14 +417,20 @@ cmd_help() {
     echo -e "  phpvm --set <version>        Switch to version (e.g. 8.2)"
     echo -e "  phpvm --auto [--quiet]       Auto-switch from .php-version / composer.json"
     echo -e "  phpvm --set-project <ver>    Write .php-version in current dir"
+    echo -e "  phpvm --enable-hook [shell]  Add auto-switch hook to shell rc (bash/zsh/fish)"
+    echo -e "  phpvm --disable-hook [shell] Remove auto-switch hook from shell rc"
     echo -e "  phpvm --version              Show tool version"
     echo -e "  phpvm --help                 This help"
     echo ""
     echo -e "${BOLD}Shell hook (auto-switch on cd):${NC}"
-    echo -e "  ${DIM}Hook dir: /etc/phpvm (system install) or ~/.phpvm (user install)${NC}"
-    echo -e "  Bash: ${DIM}echo 'source <hook-dir>/php-auto.bash' >> ~/.bashrc${NC}"
-    echo -e "  Zsh:  ${DIM}echo 'source <hook-dir>/php-auto.zsh'  >> ~/.zshrc${NC}"
-    echo -e "  Fish: ${DIM}cp <hook-dir>/php-auto.fish ~/.config/fish/conf.d/${NC}"
+    echo -e "  ${DIM}System install (/etc/phpvm):${NC}"
+    echo -e "    Bash: ${DIM}echo 'source /etc/phpvm/php-auto.bash' >> ~/.bashrc${NC}"
+    echo -e "    Zsh:  ${DIM}echo 'source /etc/phpvm/php-auto.zsh'  >> ~/.zshrc${NC}"
+    echo -e "    Fish: ${DIM}cp /etc/phpvm/php-auto.fish ~/.config/fish/conf.d/${NC}"
+    echo -e "  ${DIM}User install (~/.phpvm):${NC}"
+    echo -e "    Bash: ${DIM}echo 'source ~/.phpvm/php-auto.bash' >> ~/.bashrc${NC}"
+    echo -e "    Zsh:  ${DIM}echo 'source ~/.phpvm/php-auto.zsh'  >> ~/.zshrc${NC}"
+    echo -e "    Fish: ${DIM}cp ~/.phpvm/php-auto.fish ~/.config/fish/conf.d/${NC}"
     echo ""
     echo -e "${BOLD}Project config:${NC}"
     echo -e "  .php-version    Plain text file with PHP version (e.g. ${CYAN}8.2${NC})"
@@ -560,6 +665,12 @@ case "$CMD" in
         ;;
     -p | --set-project)
         cmd_set_project "${1:-}"
+        ;;
+    --enable-hook)
+        cmd_enable_hook "${1:-}"
+        ;;
+    --disable-hook)
+        cmd_disable_hook "${1:-}"
         ;;
     -v | --version)
         echo "phpvm $VERSION"
