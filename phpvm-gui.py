@@ -12,6 +12,7 @@ import signal
 import subprocess
 import sys
 import threading
+from datetime import date
 from pathlib import Path
 
 try:
@@ -64,10 +65,21 @@ def get_current():
         return ""
 
 
-def can_sudo_nopasswd():
+def can_sudo_nopasswd(cmd="update-alternatives"):
     try:
         r = subprocess.run(
-            ["sudo", "-n", "update-alternatives", "--help"],
+            ["sudo", "-n", cmd, "--help"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return r.returncode == 0
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return False
+
+
+def can_sudo_systemctl():
+    try:
+        r = subprocess.run(
+            ["sudo", "-n", "systemctl", "--version"],
             capture_output=True, text=True, timeout=5,
         )
         return r.returncode == 0
@@ -137,6 +149,328 @@ def notify(title, body, urgent=False):
         )
     except FileNotFoundError:
         pass
+
+
+# ---------- inspection helpers (for the window mode) ----------
+
+# PHP EOL dates from php.net/supported-versions.php (security-support end).
+PHP_EOL = {
+    "5.6": date(2018, 12, 31),
+    "7.0": date(2019, 1, 10),
+    "7.1": date(2019, 12, 1),
+    "7.2": date(2020, 11, 30),
+    "7.3": date(2021, 12, 6),
+    "7.4": date(2022, 11, 28),
+    "8.0": date(2023, 11, 26),
+    "8.1": date(2025, 12, 31),
+    "8.2": date(2026, 12, 31),
+    "8.3": date(2027, 12, 31),
+    "8.4": date(2028, 12, 31),
+}
+
+
+def version_num(path_or_name):
+    name = Path(path_or_name).name if "/" in str(path_or_name) else str(path_or_name)
+    m = re.search(r"(\d+\.\d+)", name)
+    return m.group(1) if m else ""
+
+
+def is_eol(version):
+    eol = PHP_EOL.get(version)
+    if not eol:
+        return None
+    return date.today() > eol
+
+
+def get_sapis(version):
+    sapis = []
+    if shutil.which(f"php{version}"):
+        sapis.append("cli")
+    if Path(f"/usr/sbin/php-fpm{version}").exists():
+        sapis.append("fpm")
+    if Path(f"/etc/apache2/mods-available/php{version}.conf").exists():
+        sapis.append("apache2")
+    return sapis
+
+
+def get_fpm_status(version):
+    if not shutil.which("systemctl"):
+        return None
+    out, code = run(["systemctl", "is-active", f"php{version}-fpm"])
+    if code == 0:
+        return "active"
+    if out in ("inactive", "failed", "activating", "deactivating"):
+        return out
+    return None
+
+
+def get_xdebug_status(version):
+    out, code = run([f"php{version}", "-m"])
+    if code != 0:
+        return None
+    return any(line.strip().lower() == "xdebug" for line in out.splitlines())
+
+
+def get_ini_path(version):
+    out, code = run([f"php{version}", "--ini"])
+    if code != 0:
+        return None
+    for line in out.splitlines():
+        if "Loaded Configuration File" in line and ":" in line:
+            return line.split(":", 1)[1].strip()
+    return None
+
+
+def reload_fpm(version):
+    if not can_sudo_systemctl():
+        return False, "needs_sudo"
+    try:
+        r = subprocess.run(
+            ["sudo", "-n", "systemctl", "restart", f"php{version}-fpm"],
+            capture_output=True, text=True, timeout=15,
+        )
+        return r.returncode == 0, (r.stderr.strip() or None)
+    except subprocess.TimeoutExpired:
+        return False, "timeout"
+    except FileNotFoundError:
+        return False, "no_sudo"
+
+
+# ---------- window mode ----------
+
+class PHPSwitcherWindow(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="phpvm")
+        self.set_default_size(720, 520)
+        self.set_icon_name("dialog-information")
+
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        outer.set_margin_top(12)
+        outer.set_margin_bottom(12)
+        outer.set_margin_start(12)
+        outer.set_margin_end(12)
+        self.add(outer)
+
+        self.header_label = Gtk.Label(xalign=0)
+        self.header_label.set_use_markup(True)
+        outer.pack_start(self.header_label, False, False, 0)
+
+        self.project_label = Gtk.Label(xalign=0)
+        self.project_label.set_line_wrap(True)
+        outer.pack_start(self.project_label, False, False, 0)
+
+        outer.pack_start(Gtk.Separator(), False, False, 4)
+
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        outer.pack_start(scroll, True, True, 0)
+
+        self.list_box = Gtk.ListBox()
+        self.list_box.set_selection_mode(Gtk.SelectionMode.NONE)
+        scroll.add(self.list_box)
+
+        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        outer.pack_start(actions, False, False, 0)
+
+        refresh_btn = Gtk.Button(label="Refresh")
+        refresh_btn.connect("clicked", lambda _: self.refresh())
+        actions.pack_start(refresh_btn, False, False, 0)
+
+        auto_btn = Gtk.Button(label="Auto-detect from project")
+        auto_btn.connect("clicked", self._on_auto)
+        actions.pack_start(auto_btn, False, False, 0)
+
+        folder_btn = Gtk.Button(label="Pick folder…")
+        folder_btn.connect("clicked", self._on_folder)
+        actions.pack_start(folder_btn, False, False, 0)
+
+        self.refresh()
+
+    def refresh(self):
+        for child in self.list_box.get_children():
+            self.list_box.remove(child)
+
+        current = get_current()
+        php_v_out, _ = run(["php", "--version"])
+        php_v_line = php_v_out.splitlines()[0] if php_v_out else ""
+
+        if current:
+            self.header_label.set_markup(
+                f'<big><b>Active:</b> '
+                f'<span foreground="#2da44e">{GLib.markup_escape_text(Path(current).name)}</span>'
+                f'</big>\n<small>{GLib.markup_escape_text(php_v_line)}</small>'
+            )
+        else:
+            self.header_label.set_markup("<big><b>Active:</b> <i>unknown</i></big>")
+
+        proj = detect_project_php()
+        if proj:
+            self.project_label.set_markup(
+                f"<b>Project requires:</b> PHP {GLib.markup_escape_text(proj)}  "
+                f'<i><small>(cwd: {GLib.markup_escape_text(os.getcwd())})</small></i>'
+            )
+        else:
+            self.project_label.set_markup(
+                "<i>No .php-version or composer.json detected in current directory.</i>"
+            )
+
+        for v in get_versions():
+            self.list_box.add(self._build_row(v, current))
+
+        self.list_box.show_all()
+
+    def _build_row(self, v, current):
+        ver = version_num(v)
+        active = (v == current)
+
+        row = Gtk.ListBoxRow()
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        box.set_margin_top(6)
+        box.set_margin_bottom(6)
+        box.set_margin_start(8)
+        box.set_margin_end(8)
+        row.add(box)
+
+        name_label = Gtk.Label(xalign=0)
+        name_label.set_use_markup(True)
+        if active:
+            name_label.set_markup(
+                f'<span foreground="#2da44e"><b>● {GLib.markup_escape_text(Path(v).name)}</b></span>'
+            )
+        else:
+            name_label.set_markup(f"  {GLib.markup_escape_text(Path(v).name)}")
+        name_label.set_size_request(140, -1)
+        box.pack_start(name_label, False, False, 0)
+
+        badges = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        for sapi in get_sapis(ver):
+            badges.pack_start(self._badge(sapi, "#0969da"), False, False, 0)
+
+        if get_xdebug_status(ver):
+            badges.pack_start(self._badge("xdebug", "#bf8700"), False, False, 0)
+
+        fpm = get_fpm_status(ver)
+        if fpm == "active":
+            badges.pack_start(self._badge("fpm: running", "#2da44e"), False, False, 0)
+        elif fpm in ("inactive", "failed"):
+            badges.pack_start(self._badge(f"fpm: {fpm}", "#6e7781"), False, False, 0)
+
+        eol = is_eol(ver)
+        if eol is True:
+            badges.pack_start(self._badge("EOL", "#cf222e"), False, False, 0)
+
+        box.pack_start(badges, True, True, 0)
+
+        if "fpm" in get_sapis(ver):
+            reload_btn = Gtk.Button(label="Restart FPM")
+            reload_btn.set_tooltip_text(f"sudo systemctl restart php{ver}-fpm")
+            reload_btn.connect("clicked", self._on_reload_fpm, ver)
+            box.pack_end(reload_btn, False, False, 0)
+
+        switch_btn = Gtk.Button(label="Active" if active else "Switch")
+        switch_btn.set_sensitive(not active)
+        switch_btn.connect("clicked", self._on_switch, v)
+        box.pack_end(switch_btn, False, False, 0)
+
+        ini = get_ini_path(ver)
+        if ini:
+            row.set_tooltip_text(f"php.ini: {ini}")
+
+        return row
+
+    def _badge(self, text, color):
+        lbl = Gtk.Label()
+        lbl.set_markup(
+            f'<span size="x-small" background="{color}" foreground="white">'
+            f' {GLib.markup_escape_text(text)} </span>'
+        )
+        return lbl
+
+    def _on_switch(self, _btn, target):
+        def worker():
+            ok, err = switch_php(target)
+            GLib.idle_add(self._post_switch, ok, Path(target).name, err)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _post_switch(self, ok, name, err):
+        if ok:
+            notify("phpvm", f"Switched to {name}")
+        elif err == "needs_sudo":
+            notify("phpvm",
+                   "Passwordless sudo not configured for update-alternatives.",
+                   urgent=True)
+        else:
+            notify("phpvm", f"Failed to switch to {name}", urgent=True)
+        self.refresh()
+        return False
+
+    def _on_reload_fpm(self, _btn, ver):
+        def worker():
+            ok, err = reload_fpm(ver)
+            GLib.idle_add(self._post_fpm, ok, ver, err)
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _post_fpm(self, ok, ver, err):
+        if ok:
+            notify("phpvm", f"Restarted php{ver}-fpm")
+        elif err == "needs_sudo":
+            notify("phpvm",
+                   f"Need a sudoers rule for: systemctl restart php{ver}-fpm",
+                   urgent=True)
+        else:
+            notify("phpvm", f"Failed to restart php{ver}-fpm", urgent=True)
+        self.refresh()
+        return False
+
+    def _on_auto(self, _btn):
+        proj = detect_project_php()
+        if not proj:
+            notify("phpvm", "No .php-version or composer.json found")
+            return
+        target = next(
+            (v for v in get_versions() if Path(v).name == f"php{proj}"), None
+        )
+        if not target:
+            notify("phpvm", f"PHP {proj} required but not installed", urgent=True)
+            return
+        if target == get_current():
+            notify("phpvm", f"Already on PHP {proj}")
+            return
+        self._on_switch(None, target)
+
+    def _on_folder(self, _btn):
+        dialog = Gtk.FileChooserDialog(
+            title="Select project folder",
+            parent=self,
+            action=Gtk.FileChooserAction.SELECT_FOLDER,
+        )
+        dialog.add_buttons(
+            Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL,
+            Gtk.STOCK_OPEN, Gtk.ResponseType.OK,
+        )
+        dialog.set_modal(False)
+        dialog.connect("response", self._on_folder_response)
+        dialog.show()
+
+    def _on_folder_response(self, dialog, response):
+        folder = dialog.get_filename() if response == Gtk.ResponseType.OK else None
+        dialog.destroy()
+        if not folder:
+            return
+        proj = detect_project_php(folder)
+        if not proj:
+            notify("phpvm", "No .php-version or composer.json in that folder")
+            return
+        target = next(
+            (v for v in get_versions() if Path(v).name == f"php{proj}"), None
+        )
+        if not target:
+            notify("phpvm", f"PHP {proj} required but not installed", urgent=True)
+            return
+        if target == get_current():
+            notify("phpvm", f"Already on PHP {proj}")
+            return
+        self._on_switch(None, target)
 
 
 class PHPSwitcherTray:
@@ -215,6 +549,10 @@ class PHPSwitcherTray:
         folder_item.connect("activate", self._on_auto_folder)
         self.menu.append(folder_item)
 
+        window_item = Gtk.MenuItem(label="Open phpvm window…")
+        window_item.connect("activate", self._on_open_window)
+        self.menu.append(window_item)
+
         tui_item = Gtk.MenuItem(label="Open Terminal UI")
         tui_item.connect("activate", self._on_tui)
         self.menu.append(tui_item)
@@ -289,6 +627,10 @@ class PHPSwitcherTray:
         if folder:
             self._on_auto(None, directory=folder)
 
+    def _on_open_window(self, _widget):
+        win = PHPSwitcherWindow()
+        win.show_all()
+
     def _on_tui(self, _widget):
         terminals = [
             ["gnome-terminal", "--", "phpvm"],
@@ -321,7 +663,22 @@ class PHPSwitcherTray:
 
 def main():
     signal.signal(signal.SIGINT, signal.SIG_DFL)
-    PHPSwitcherTray()
+    args = sys.argv[1:]
+    mode = "tray"
+    if "--window" in args or "-w" in args:
+        mode = "window"
+    elif "--help" in args or "-h" in args:
+        print("Usage: phpvm-gui [--window|-w] [--help]")
+        print("  (no args)   Run as system tray applet")
+        print("  --window    Open the picker window directly (no tray)")
+        return
+
+    if mode == "window":
+        win = PHPSwitcherWindow()
+        win.connect("destroy", Gtk.main_quit)
+        win.show_all()
+    else:
+        PHPSwitcherTray()
     Gtk.main()
 
 

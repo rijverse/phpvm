@@ -41,6 +41,7 @@ Drop a `.php-version` file in any project. `cd` in, the right PHP is already loa
 |---|---|
 | 🖥️ **Interactive TUI** | Arrow-key version picker right in your terminal |
 | 🖼️ **System tray GUI** | One-click switching from your panel |
+| 🪟 **Detached picker window** | Full GTK window with per-version SAPI / xdebug / FPM / EOL badges |
 | 📁 **Per-project PHP** | `.php-version` or `composer.json` driven |
 | ⚡ **Auto-switch on `cd`** | Bash / Zsh / Fish hooks, no manual `--set` |
 | 🔇 **Silent operation** | Optional passwordless sudo for zero prompts |
@@ -79,20 +80,35 @@ The installer asks: **CLI**, **GUI**, or **both** — and offers to wire up the 
 | `phpvm --set-project 8.2` | Pin this directory to PHP 8.2 |
 | `phpvm --enable-hook [shell]` | Add auto-switch hook to bash/zsh/fish |
 | `phpvm --disable-hook [shell]` | Remove the hook (creates a backup) |
+| `phpvm --window` | Launch a detached GTK picker window (frees the terminal) |
 | `phpvm --help` | Full reference |
 
 **TUI keys** &nbsp;&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> / <kbd>k</kbd> <kbd>j</kbd> move &nbsp;·&nbsp; <kbd>Enter</kbd> switch &nbsp;·&nbsp; <kbd>p</kbd> pin &nbsp;·&nbsp; <kbd>q</kbd> quit
 
 ---
 
-## 🖼️ System tray (`phpvm-gui`)
+## 🖼️ Graphical UI
 
-Tray applet that shows the active version, lets you switch versions in one click, and runs auto-detect against any folder.
+Two modes — both ship in the same `phpvm-gui` binary.
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
-phpvm-gui
+
+phpvm-gui              # tray applet (lives in your panel)
+phpvm-gui --window     # detached GTK picker window (no tray)
+phpvm --window         # same window, launched from the shell, frees the terminal
 ```
+
+The **window mode** shows each version with live badges:
+
+- 🟦 SAPIs available (`cli`, `fpm`, `apache2`)
+- 🟧 `xdebug` enabled
+- 🟩 / ⬜ `php-fpm` running / inactive
+- 🟥 EOL versions (security-support ended)
+
+Plus per-row actions: **Switch** to that version, **Restart FPM** for that version, project auto-detect, and a folder picker for one-off switches. Tooltip on each row shows the loaded `php.ini` path.
+
+> **Restart FPM** needs a sudoers rule allowing `systemctl restart php*-fpm` without a password. Without it, the GUI notifies you and skips the action — switching itself is unaffected.
 
 ---
 

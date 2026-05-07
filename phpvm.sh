@@ -407,6 +407,17 @@ cmd_disable_hook() {
     echo -e "  ${DIM}Reload: source ${rc}${NC}"
 }
 
+cmd_window() {
+    if ! command -v phpvm-gui &>/dev/null; then
+        echo -e "${RED}phpvm-gui not installed.${NC}" >&2
+        echo -e "${DIM}Install with: sudo bash install.sh (choose GUI or both)${NC}" >&2
+        exit 1
+    fi
+    setsid phpvm-gui --window </dev/null >/dev/null 2>&1 &
+    disown 2>/dev/null || true
+    echo -e "${GREEN}✓${NC} Window launched."
+}
+
 cmd_help() {
     echo -e "${BOLD}${BLUE}phpvm${NC} v${VERSION}"
     echo ""
@@ -419,6 +430,7 @@ cmd_help() {
     echo -e "  phpvm --set-project <ver>    Write .php-version in current dir"
     echo -e "  phpvm --enable-hook [shell]  Add auto-switch hook to shell rc (bash/zsh/fish)"
     echo -e "  phpvm --disable-hook [shell] Remove auto-switch hook from shell rc"
+    echo -e "  phpvm --window               Open detached GTK picker window (needs phpvm-gui)"
     echo -e "  phpvm --version              Show tool version"
     echo -e "  phpvm --help                 This help"
     echo ""
@@ -671,6 +683,9 @@ case "$CMD" in
         ;;
     --disable-hook)
         cmd_disable_hook "${1:-}"
+        ;;
+    -w | --window)
+        cmd_window
         ;;
     -v | --version)
         echo "phpvm $VERSION"
