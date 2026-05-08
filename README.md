@@ -52,7 +52,7 @@ Drop a `.php-version` file in any project. `cd` in, the right PHP is already loa
 ## 🚀 Quick install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/phpvm.git
+git clone git@github.com:Rijoanul-Shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
