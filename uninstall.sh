@@ -30,6 +30,11 @@ DESKTOPS=(
     "$HOME/.local/share/applications/phpvm-gui.desktop"
 )
 
+# Quit running phpvm-gui
+if pgrep -x phpvm-gui &>/dev/null; then
+    pkill -x phpvm-gui 2>/dev/null && success "Stopped phpvm-gui" || warn "Could not stop phpvm-gui"
+fi
+
 # Remove binaries
 for dir in "${BIN_DIRS[@]}"; do
     for bin in phpvm phpvm-gui; do
