@@ -159,8 +159,13 @@ echo -e "  ${BOLD}Passwordless sudo for auto-switching${NC}"
 echo -e "  ${DIM}Without this, each auto-switch prompts for your password.${NC}"
 echo ""
 if (( UPGRADE )); then
-    ans="n"
-    [[ -f /etc/sudoers.d/phpvm ]] && info "Sudoers rule already present — keeping it."
+    if [[ -f /etc/sudoers.d/phpvm ]] && grep -q 'php\*' /etc/sudoers.d/phpvm 2>/dev/null; then
+        warn "Sudoers rule has old glob (php*) — upgrading to tighter pattern"
+        ans="y"
+    else
+        ans="n"
+        [[ -f /etc/sudoers.d/phpvm ]] && info "Sudoers rule already present — keeping it."
+    fi
 elif [[ ! -t 0 ]]; then
     ans="n"
     info "Non-interactive — skipping sudoers prompt."
