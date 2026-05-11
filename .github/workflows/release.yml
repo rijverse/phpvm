@@ -1,0 +1,69 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Verify tag matches VERSION
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          file_ver=$(grep -E '^VERSION="' phpvm.sh | head -1 | cut -d'"' -f2)
+          echo "tag=${tag}  phpvm.sh=${file_ver}"
+          if [[ "$tag" != "$file_ver" ]]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} does not match VERSION=${file_ver} in phpvm.sh"
+            exit 1
+          fi
+
+      - name: Extract changelog section for this tag
+        id: notes
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          # Grab content between "## [<tag>]" and the next "## [" header.
+          # Falls back to a generic note if the section is missing.
+          notes=$(awk -v ver="$tag" '
+            $0 ~ "^## \\["ver"\\]" {found=1; next}
+            found && /^## \[/ {exit}
+            found {print}
+          ' CHANGELOG.md | sed -e '/./,$!d')
+          if [[ -z "$notes" ]]; then
+            notes="Release ${GITHUB_REF_NAME}. See CHANGELOG.md for details."
+          fi
+          {
+            echo 'body<<EOF'
+            echo "$notes"
+            echo 'EOF'
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Shell lint (best effort)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+          shellcheck -S warning phpvm.sh install.sh uninstall.sh || true
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: phpvm ${{ github.ref_name }}
+          body: ${{ steps.notes.outputs.body }}
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            phpvm.sh
+            phpvm-gui.py
+            install.sh
+            uninstall.sh
+            shell/php-auto.bash
+            shell/php-auto.zsh
+            shell/php-auto.fish
