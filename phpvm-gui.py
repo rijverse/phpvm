@@ -112,35 +112,11 @@ def get_current():
         return ""
 
 
-def can_sudo_nopasswd(cmd="update-alternatives"):
-    try:
-        r = subprocess.run(
-            ["sudo", "-n", cmd, "--help"],
-            capture_output=True, text=True, timeout=5,
-        )
-        return r.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False
-
-
-def can_sudo_systemctl():
-    try:
-        r = subprocess.run(
-            ["sudo", "-n", "systemctl", "--version"],
-            capture_output=True, text=True, timeout=5,
-        )
-        return r.returncode == 0
-    except (subprocess.TimeoutExpired, FileNotFoundError):
-        return False
-
-
 def switch_php(target):
-    if not can_sudo_nopasswd():
-        return False, "needs_sudo"
     try:
         r = subprocess.run(
-            ["sudo", "-n", "update-alternatives", "--set", "php", target],
-            capture_output=True, text=True, timeout=15,
+            ["sudo", "-p", f"[phpvm] switching PHP — password for %u: ", "update-alternatives", "--set", "php", target],
+            capture_output=True, text=True, timeout=30,
         )
         return r.returncode == 0, (r.stderr.strip() or None)
     except subprocess.TimeoutExpired:
@@ -312,12 +288,10 @@ def get_ini_path(version):
 
 
 def reload_fpm(version):
-    if not can_sudo_systemctl():
-        return False, "needs_sudo"
     try:
         r = subprocess.run(
-            ["sudo", "-n", "systemctl", "restart", f"php{version}-fpm"],
-            capture_output=True, text=True, timeout=15,
+            ["sudo", "-p", f"[phpvm] restarting php{version}-fpm — password for %u: ", "systemctl", "restart", f"php{version}-fpm"],
+            capture_output=True, text=True, timeout=30,
         )
         return r.returncode == 0, (r.stderr.strip() or None)
     except subprocess.TimeoutExpired:
@@ -491,13 +465,9 @@ class PHPSwitcherWindow(Gtk.Window):
     def _post_switch(self, ok, name, err):
         if ok:
             clear_caches()
-            notify("phpvm", f"Switched to {name}")
-        elif err == "needs_sudo":
-            notify("phpvm",
-                   "Passwordless sudo not configured for update-alternatives.",
-                   urgent=True)
+            print(f"phpvm: switched to {name}")
         else:
-            notify("phpvm", f"Failed to switch to {name}", urgent=True)
+            print(f"phpvm: failed to switch to {name}" + (f" ({err})" if err else ""))
         self.refresh()
         return False
 
@@ -509,13 +479,9 @@ class PHPSwitcherWindow(Gtk.Window):
 
     def _post_fpm(self, ok, ver, err):
         if ok:
-            notify("phpvm", f"Restarted php{ver}-fpm")
-        elif err == "needs_sudo":
-            notify("phpvm",
-                   f"Need a sudoers rule for: systemctl restart php{ver}-fpm",
-                   urgent=True)
+            print(f"phpvm: restarted php{ver}-fpm")
         else:
-            notify("phpvm", f"Failed to restart php{ver}-fpm", urgent=True)
+            print(f"phpvm: failed to restart php{ver}-fpm" + (f" ({err})" if err else ""))
         self.refresh()
         return False
 
@@ -675,14 +641,9 @@ class PHPSwitcherTray:
         self._refresh_label()
         self._build_menu()
         if ok:
-            notify("phpvm", f"Switched to {name}")
-        elif err == "needs_sudo":
-            notify("phpvm",
-                   "Passwordless sudo not configured.\n"
-                   "Run install.sh or add a /etc/sudoers.d/phpvm rule.",
-                   urgent=True)
+            print(f"phpvm: switched to {name}")
         else:
-            notify("phpvm", f"Failed to switch to {name}", urgent=True)
+            print(f"phpvm: failed to switch to {name}" + (f" ({err})" if err else ""))
         return False
 
     def _on_auto(self, _widget, directory=None):

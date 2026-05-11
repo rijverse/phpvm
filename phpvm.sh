@@ -211,26 +211,9 @@ do_switch() {
     local target="$1"
     local quiet="${2:-false}"
 
-    # quiet mode is invoked from shell hooks on terminal open / cd. use
-    # sudo -n so we never block on a silent password prompt the user
-    # can't tell what's asking, so this would feel like a hang or attack.
-    local sudo_args=()
-    [[ "$quiet" == "true" ]] && sudo_args=(-n)
-
     local err
-    err=$(sudo "${sudo_args[@]}" update-alternatives --set php "$target" 2>&1 >/dev/null)
+    err=$(sudo -p "[phpvm] switching PHP — password for %u: " update-alternatives --set php "$target" 2>&1 >/dev/null)
     local code=$?
-
-    # detect "sudo -n needs a password" so callers can show a helpful message
-    # instead of a generic failure. sudo prints various phrasings in different
-    # locales but they all contain one of these substrings.
-    local sudo_needed=0
-    if [[ "$quiet" == "true" && "$code" -ne 0 ]] \
-        && [[ "$err" == *"password is required"* \
-            || "$err" == *"a terminal is required"* \
-            || "$err" == *"askpass"* ]]; then
-        sudo_needed=1
-    fi
 
     if [[ "$quiet" != "true" ]]; then
         if [[ "$code" -eq 0 ]]; then
@@ -238,11 +221,9 @@ do_switch() {
         else
             echo -e "${RED}✗${NC} Failed to switch." >&2
             [[ -n "$err" ]] && echo -e "${DIM}${err}${NC}" >&2
-            echo -e "${DIM}Tip: configure passwordless sudo (see install.sh) or run via sudo.${NC}" >&2
             return 1
         fi
     fi
-    (( sudo_needed )) && return 77
     return "$code"
 }
 
@@ -341,20 +322,11 @@ cmd_auto() {
     do_switch "$target" "$quiet"
     local rc=$?
 
-    if [[ "$quiet" == "true" ]] && command -v notify-send &>/dev/null; then
+    if [[ "$quiet" == "true" ]]; then
         if [[ "$rc" -eq 0 ]]; then
-            notify-send "phpvm" "Switched to PHP ${ver}" --icon="${PHPVM_ICON}" 2>/dev/null
-        elif [[ "$rc" -eq 77 ]]; then
-            notify-send -u normal "phpvm auto-switch" \
-                "Wants to switch to PHP ${ver} but passwordless sudo isn't configured.
-
-Fix once:  sudo bash install.sh  (answer Y to sudoers prompt)
-Or switch:  phpvm --set ${ver}" \
-                --icon="${PHPVM_ICON}" 2>/dev/null
-            # Don't fail terminal startup over a missing sudoers rule.
-            return 0
-        else
-            notify-send -u critical "phpvm" "Failed to switch to PHP ${ver}" --icon=dialog-error 2>/dev/null
+            echo -e "${GREEN}phpvm:${NC} switched to PHP ${BOLD}${ver}${NC}"
+        elif [[ "$rc" -ne 0 ]]; then
+            echo -e "${RED}phpvm:${NC} failed to switch to PHP ${ver}" >&2
         fi
     fi
     return "$rc"
@@ -814,7 +786,7 @@ switch_version_tui() {
     echo -e "  Switching to ${BOLD}${CYAN}${label}${NC} ..."
     echo ""
 
-    sudo update-alternatives --set php "$target"
+    sudo -p "[phpvm] switching PHP — password for %u: " update-alternatives --set php "$target"
     local exit_code=$?
 
     echo ""
