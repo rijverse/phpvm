@@ -1,7 +1,7 @@
 #!/bin/bash
 # phpvm - PHP Version Manager v2.1.0
 
-VERSION="2.1.0"
+VERSION="2.2.0"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
