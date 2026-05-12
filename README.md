@@ -1,3 +1,5 @@
+<div align="center">
+
 <img src="assets/phpvm.svg" alt="phpvm" width="96" />
 
 # phpvm
@@ -10,6 +12,8 @@ If you've been juggling `update-alternatives --set php` by hand every time you s
 ![Python](https://img.shields.io/badge/Python-3-3776ab?logo=python&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-update--alternatives-fcc624?logo=linux&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
+
+</div>
 
 ```
 ┌─────────────────────────────────────────┐
