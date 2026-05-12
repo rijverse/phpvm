@@ -1,3 +1,5 @@
+<img src="assets/phpvm.svg" alt="phpvm" width="96" />
+
 # phpvm
 
 A small PHP version switcher for Linux. TUI in the terminal, optional system tray app, and a `cd`-hook that picks the right PHP for the project you just stepped into.
