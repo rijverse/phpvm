@@ -2,6 +2,21 @@
 
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [2.2.0] - 2026-05-11
+
+### Added
+- `phpvm-gui` now falls back to `pkexec` (polkit graphical auth dialog) when passwordless sudo isn't configured. Switch / Restart FPM no longer silently no-op for users without the sudoers rule.
+- Inline status label in the GTK window — switch and restart-fpm results render in the window itself (green/red), replacing the desktop-notification round-trip.
+- `uninstall.sh` stops any running `phpvm-gui` (via `pkill -x`) before removing files. Avoids the "file in use" / stale tray icon after uninstall.
+- GitHub Actions release workflow (`.github/workflows/release.yml`) for tag-triggered releases.
+
+### Changed
+- Sudo prompts everywhere now carry a labeled `-p` string (`[phpvm] switching PHP — password for %u:`, `[phpvm] restarting phpX.Y-fpm — password for %u:`) so users see who's asking when no nopasswd rule is set.
+- Removed `sudo -n` quiet path and the rc=77 "password required" signaling from `do_switch` + `cmd_auto`. Shell-hook auto-switch is now plain `sudo` — passwordless if sudoers is configured, interactive prompt otherwise. Net: 60+ lines deleted from `phpvm.sh` and `phpvm-gui.py`.
+- `cmd_auto` quiet mode prints terse stdout (`phpvm: switched to PHP X.Y`) instead of dispatching `notify-send`. GUI handles its own notifications via the inline status label.
+
+---
+
 ## [2.1.0] - 2026-05-11
 
 ### Added

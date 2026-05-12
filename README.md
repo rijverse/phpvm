@@ -1,19 +1,13 @@
-<div align="center">
-
 # phpvm
 
-**A fast PHP version switcher for Linux — TUI + system tray GUI.**
+A small PHP version switcher for Linux. TUI in the terminal, optional system tray app, and a `cd`-hook that picks the right PHP for the project you just stepped into.
 
-Drop a `.php-version` file in any project. `cd` in, the right PHP is already loaded.
+If you've been juggling `update-alternatives --set php` by hand every time you switch between a Laravel 9 app on 8.1 and a fresh Symfony repo on 8.3, this is for you.
 
 ![Bash](https://img.shields.io/badge/Bash-4%2B-1f425f?logo=gnubash&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3-3776ab?logo=python&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-update--alternatives-fcc624?logo=linux&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
-
-</div>
-
----
 
 ```
 ┌─────────────────────────────────────────┐
@@ -28,102 +22,95 @@ Drop a `.php-version` file in any project. `cd` in, the right PHP is already loa
   ────────────────────────────────────────
 
     php7.4
-  ▌ php8.1                               ▐
-    php8.2                                 ● active
+    php8.1                               
+  ▌ php8.2                                 ● active
     php8.3
 ```
 
----
+## What it does
 
-## ✨ Features
+- Interactive TUI version picker, arrow keys, Enter, done.
+- A tray icon (and a separate GTK window if you'd rather not live in the panel) with per-version badges: which SAPIs are available, whether xdebug is loaded, whether FPM is running, whether the version is EOL.
+- `.php-version` (or `composer.json`'s `require.php`) drives a per-project version. Walks up the tree like `nvm` does.
+- A `cd`-hook for bash / zsh / fish that runs `phpvm --auto` so the right PHP is loaded by the time the prompt comes back.
+- An installer that asks the obvious questions (CLI? GUI? wire up the shell hook? passwordless sudo?) and an uninstaller that backs up your shell rc before touching it.
 
-| | |
-|---|---|
-| 🖥️ **Interactive TUI** | Arrow-key version picker right in your terminal |
-| 🖼️ **System tray GUI** | One-click switching from your panel |
-| 🪟 **Detached picker window** | Full GTK window with per-version SAPI / xdebug / FPM / EOL badges |
-| 📁 **Per-project PHP** | `.php-version` or `composer.json` driven |
-| ⚡ **Auto-switch on `cd`** | Bash / Zsh / Fish hooks, no manual `--set` |
-| 🔇 **Silent operation** | Optional passwordless sudo for zero prompts |
-| 🧹 **Clean uninstall** | Removes itself, backs up your shell rc |
+Under the hood it's just `update-alternatives --set php`. Nothing exotic. The whole point is that you stop typing that command.
 
----
-
-## 🚀 Quick install
+## Installing
 
 ```bash
 git clone git@github.com:Rijoanul-Shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
-The installer asks: **CLI**, **GUI**, or **both** — and offers to wire up the shell hook and passwordless sudo.
+The installer is interactive, pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Nothing happens behind your back.
 
-> Removing it later: `sudo bash uninstall.sh`
+To remove it: `sudo bash uninstall.sh`. Your shell rc is backed up first.
 
 ### Upgrading
 
 ```bash
-phpvm --self-update                              # uses repo URL captured at install
-phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git
-phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.1.0   # specific tag/branch
+phpvm --self-update
 ```
 
-Re-runs the installer in `--upgrade` mode: same install paths, same CLI/GUI choice, no re-prompting for sudoers or shell hooks. Falls back to a manual repo URL if the original one wasn't recorded (e.g. installed from a tarball).
+That pulls the latest from the repo URL captured at install time and re-runs the installer in `--upgrade` mode, same install paths, same CLI/GUI choice, doesn't re-prompt for sudoers or the shell hook.
 
-### Requirements
+If you installed from a tarball (no recorded URL), you can pass one explicitly, optionally with a tag or branch:
 
-- Linux with `update-alternatives` (Debian / Ubuntu)
-- Bash 4+
-- GUI extras: `python3-gi`, GTK3, AppIndicator3
+```bash
+phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git
+phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
+```
 
----
+### What you need
 
-## 💻 CLI
+- Linux with `update-alternatives` (so: Debian, Ubuntu, derivatives).
+- Bash 4+.
+- For the GUI: `python3-gi`, GTK3, AppIndicator3. The install command is in the GUI section below.
 
-| Command | Action |
+## CLI
+
+| Command | What it does |
 |---|---|
-| `phpvm` | Open the interactive TUI |
-| `phpvm --list` | Show all installed PHP versions |
-| `phpvm --current` | Show what's active right now |
-| `phpvm --set 8.2` | Switch globally to PHP 8.2 |
-| `phpvm --auto` | Auto-switch from `.php-version` / `composer.json` |
-| `phpvm --set-project 8.2` | Pin this directory to PHP 8.2 |
-| `phpvm --enable-hook [shell]` | Add auto-switch hook to bash/zsh/fish |
-| `phpvm --disable-hook [shell]` | Remove the hook (creates a backup) |
-| `phpvm --window` | Launch a detached GTK picker window (frees the terminal) |
-| `phpvm --self-update` | Pull latest from git and re-run installer non-interactively |
-| `phpvm --help` | Full reference |
+| `phpvm` | Opens the TUI |
+| `phpvm --list` | Lists installed PHP versions |
+| `phpvm --current` | Prints whichever one is active |
+| `phpvm --set 8.2` | Switches globally to 8.2 |
+| `phpvm --auto` | Reads `.php-version` / `composer.json` and switches |
+| `phpvm --set-project 8.2` | Writes `.php-version` here |
+| `phpvm --enable-hook [shell]` | Adds the auto-switch hook to your rc |
+| `phpvm --disable-hook [shell]` | Removes it (rc is backed up first) |
+| `phpvm --window` | Launches the GTK picker window, then frees the terminal |
+| `phpvm --self-update` | Re-runs the installer against the latest commit |
+| `phpvm --help` | Everything else |
 
-**TUI keys** &nbsp;&nbsp; <kbd>↑</kbd> <kbd>↓</kbd> / <kbd>k</kbd> <kbd>j</kbd> move &nbsp;·&nbsp; <kbd>Enter</kbd> switch &nbsp;·&nbsp; <kbd>p</kbd> pin &nbsp;·&nbsp; <kbd>q</kbd> quit
+In the TUI: <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>k</kbd> <kbd>j</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin the current selection as the project version, <kbd>q</kbd> to bail.
 
----
+## The GUI
 
-## 🖼️ Graphical UI
-
-Two modes — both ship in the same `phpvm-gui` binary.
+Two shapes, same binary.
 
 ```bash
 sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
 
-phpvm-gui              # tray applet (lives in your panel)
-phpvm-gui --window     # detached GTK picker window (no tray)
-phpvm --window         # same window, launched from the shell, frees the terminal
+phpvm-gui              # tray applet
+phpvm-gui --window     # detached GTK picker window, no tray
+phpvm --window         # same window, launched from the shell — terminal is freed
 ```
 
-The **window mode** shows each version with live badges:
+The window view shows each version with:
 
-- 🟦 SAPIs available (`cli`, `fpm`, `apache2`)
-- 🟧 `xdebug` enabled
-- 🟩 / ⬜ `php-fpm` running / inactive
-- 🟥 EOL versions (security-support ended)
+- which SAPIs are available (`cli`, `fpm`, `apache2`)
+- whether xdebug is enabled
+- whether `php-fpm` for that version is running
+- a red marker if it's EOL
 
-Plus per-row actions: **Switch** to that version, **Restart FPM** for that version, project auto-detect, and a folder picker for one-off switches. Tooltip on each row shows the loaded `php.ini` path.
+Each row gets buttons for **Switch** and **Restart FPM**. There's also a project auto-detect button and a folder picker for one-off switches. Hover a row and the tooltip tells you which `php.ini` it would load.
 
-> **Restart FPM** needs a sudoers rule allowing `systemctl restart php*-fpm` without a password. Without it, the GUI notifies you and skips the action — switching itself is unaffected.
+About FPM restart: it tries passwordless `sudo` first, and if that fails it pops the polkit auth dialog (`pkexec`). Either works; nothing else needed.
 
----
-
-## 📁 Per-project PHP
+## Per-project PHP
 
 ```bash
 echo "8.1" > .php-version
@@ -131,55 +118,55 @@ echo "8.1" > .php-version
 phpvm --set-project 8.1
 ```
 
-phpvm walks up the directory tree looking for `.php-version`. If it doesn't find one, it falls back to `require.php` in `composer.json` and picks the highest installed version that satisfies the constraint (`^`, `~`, `>=`, ranges, `|` — all supported).
+phpvm walks up the directory tree looking for `.php-version`. If there isn't one, it reads `require.php` from `composer.json` and picks the highest installed version that satisfies the constraint. Caret, tilde, ranges, `|` unions all the constraint syntaxes Composer accepts.
 
----
-
-## ⚙️ Shell hook (auto-switch on `cd`)
+## Shell hook (auto-switch on `cd`)
 
 The easy way:
 
 ```bash
-phpvm --enable-hook            # auto-detects $SHELL
-phpvm --enable-hook zsh        # or be explicit
-phpvm --disable-hook           # undo (rc backed up)
+phpvm --enable-hook            # detects $SHELL
+phpvm --enable-hook zsh        # or name it
+phpvm --disable-hook           # undo, rc backed up
 ```
 
 <details>
-<summary><strong>Manual setup</strong></summary>
+<summary>If you'd rather edit your rc yourself</summary>
 
-Pick the line for your install mode — `/etc/phpvm` for system installs, `~/.phpvm` for user installs:
+System install lives under `/etc/phpvm`; user install lives under `~/.phpvm`. Source whichever exists:
 
 ```bash
-# Bash
+# bash
 source /etc/phpvm/php-auto.bash      # or  ~/.phpvm/php-auto.bash
 
-# Zsh
+# zsh
 source /etc/phpvm/php-auto.zsh       # or  ~/.phpvm/php-auto.zsh
 
-# Fish
+# fish
 source /etc/phpvm/php-auto.fish      # or  ~/.phpvm/php-auto.fish
 ```
 
 </details>
 
----
+## About sudo
 
-## 🔇 Passwordless sudo
+Every switch ends up running `sudo update-alternatives --set php …` 
 
-Every switch calls `sudo update-alternatives`. To skip the password prompt, drop a sudoers rule (the installer offers this):
+By default that means a password prompt. The installer offers to drop a sudoers rule so you don't get one:
 
 ```
 # /etc/sudoers.d/phpvm
-username ALL=(ALL) NOPASSWD: /usr/bin/update-alternatives --set php /usr/bin/php*
+username ALL=(ALL) NOPASSWD: /usr/bin/update-alternatives --set php /usr/bin/php[0-9].[0-9]
 ```
 
----
+The glob is intentionally narrow, it matches `php8.2` but not `phpunit` or `php-config`.
+
+If you skip the sudoers rule, the CLI just asks for a password the normal way (and labels the prompt so you know who's asking). The GUI tries passwordless sudo first, then falls back to the polkit dialog.
 
 <details>
-<summary><strong>📦 Registering PHP versions with update-alternatives</strong></summary>
+<summary>If <code>phpvm</code> reports no versions installed</summary>
 
-If `phpvm` reports no versions, register them first:
+You probably haven't registered them with `update-alternatives` yet:
 
 ```bash
 sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.3 83
@@ -187,15 +174,17 @@ sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.2 82
 sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.1 81
 ```
 
+The number at the end is the priority; higher wins when nothing is explicitly selected.
+
 </details>
 
 <details>
-<summary><strong>🗂️ Project layout</strong></summary>
+<summary>Project layout</summary>
 
 ```
 phpvm/
 ├── phpvm.sh           CLI + TUI
-├── phpvm-gui.py       system tray GUI
+├── phpvm-gui.py       tray + window GUI
 ├── shell/
 │   ├── php-auto.bash
 │   ├── php-auto.zsh
@@ -206,12 +195,10 @@ phpvm/
 
 </details>
 
----
+## Contributing
 
-## 🤝 Contributing
+Patches welcome. See [CONTRIBUTING.md](CONTRIBUTING.md). Two ground rules: no runtime dependencies beyond what's already there, and `shellcheck` clean.
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Patches welcome — keep it dependency-free and `shellcheck`-clean.
-
-## 📄 License
+## License
 
 [MIT](LICENSE)
