@@ -83,6 +83,7 @@ phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
 | `phpvm --disable-hook [shell]` | Removes it (rc is backed up first) |
 | `phpvm --window` | Launches the GTK picker window, then frees the terminal |
 | `phpvm --self-update` | Re-runs the installer against the latest commit |
+| `phpvm --doctor` | Diagnoses install location, sudoers rule, and shell-hook setup |
 | `phpvm --help` | Everything else |
 
 In the TUI: <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>k</kbd> <kbd>j</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin the current selection as the project version, <kbd>q</kbd> to bail.
@@ -96,7 +97,7 @@ sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
 
 phpvm-gui              # tray applet
 phpvm-gui --window     # detached GTK picker window, no tray
-phpvm --window         # same window, launched from the shell — terminal is freed
+phpvm --window         # same window, launched from the shell (terminal freed)
 ```
 
 The window view shows each version with:
@@ -194,6 +195,15 @@ phpvm/
 ```
 
 </details>
+
+## Things it won't do
+
+- Install PHP for you. You still need `apt install php8.2 php8.2-fpm …` (or Ondřej Surý's PPA). phpvm only switches between what's already on disk.
+- Work on distros without `update-alternatives`. Arch, Fedora, RHEL, openSUSE out of scope. Patches welcome if you want to add a backend.
+- Touch your web server config. Apache/Nginx still point at whatever socket or module you wired up. FPM restart is per-version and only knows `systemctl restart phpX.Y-fpm` style unit names.
+- Pin a specific patch version. Everything is `X.Y`. If you need `8.2.13` exactly, this is the wrong tool.
+- Cross-shell auto-switching inside a single session. Open a new shell after switching to pick up the change inside that shell's `$PATH` resolved binary cache.
+- Pop the polkit dialog without a desktop session. Headless boxes get the regular `sudo` password prompt instead.
 
 ## Contributing
 
