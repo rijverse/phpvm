@@ -21,7 +21,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ['18.04', '20.04', '22.04', '24.04']
+        ubuntu: ['20.04', '22.04', '24.04']
     container:
       image: ubuntu:${{ matrix.ubuntu }}
 
@@ -52,7 +52,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        ubuntu: ['18.04', '20.04', '22.04', '24.04']
+        ubuntu: ['20.04', '22.04', '24.04']
     container:
       image: ubuntu:${{ matrix.ubuntu }}
 
@@ -70,7 +70,6 @@ jobs:
             gir1.2-gtk-3.0 \
             xvfb \
             libglib2.0-0 || true
-          # appindicator: ayatana on 20.04+, legacy on 18.04
           apt-get install -y -qq gir1.2-ayatana-appindicator3-0.1 2>/dev/null \
             || apt-get install -y -qq gir1.2-appindicator3-0.1 2>/dev/null \
             || echo "Warning: no appindicator package found"

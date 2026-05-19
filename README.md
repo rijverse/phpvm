@@ -71,7 +71,7 @@ phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
 
 ### What you need
 
-- Linux with `update-alternatives` (so: Debian, Ubuntu, derivatives).
+- Linux with `update-alternatives`. Tested on **Ubuntu 20.04 / 22.04 / 24.04** in CI; **Debian 11+** and Ubuntu derivatives (Mint, Pop!_OS, Zorin, elementary) on the equivalent releases should work too.
 - Bash 4+.
 - For the GUI: `python3-gi`, GTK3, AppIndicator3. The install command is in the GUI section below.
 
