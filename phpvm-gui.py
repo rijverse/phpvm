@@ -560,17 +560,17 @@ class PHPSwitcherWindow(Gtk.Window):
 
         box.pack_start(badges, True, True, 0)
 
-        if "fpm" in get_sapis(ver):
-            reload_btn = Gtk.Button(label="Restart FPM")
-            reload_btn.set_tooltip_text(f"sudo systemctl restart php{ver}-fpm")
-            reload_btn.connect("clicked", self._on_reload_fpm, ver)
-            box.pack_end(reload_btn, False, False, 0)
-
         switch_btn = Gtk.Button(label="Active" if active else "Switch")
         switch_btn.set_sensitive(not active)
         switch_btn.get_style_context().add_class("btn-active" if active else "btn-switch")
         switch_btn.connect("clicked", self._on_switch, v)
         box.pack_end(switch_btn, False, False, 0)
+
+        if "fpm" in get_sapis(ver):
+            reload_btn = Gtk.Button(label="Restart FPM")
+            reload_btn.set_tooltip_text(f"sudo systemctl restart php{ver}-fpm")
+            reload_btn.connect("clicked", self._on_reload_fpm, ver)
+            box.pack_end(reload_btn, False, False, 0)
 
         ini = get_ini_path(ver)
         if ini:
