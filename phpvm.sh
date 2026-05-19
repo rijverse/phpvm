@@ -732,9 +732,9 @@ draw_menu() {
     tput cup 0 0
     tput ed
 
-    echo -e "${BOLD}${BLUE}┌─────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
     echo -e "${BOLD}${BLUE}│                  phpvm                  │${NC}"
-    echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
+    echo -e "${BOLD}${BLUE}╰─────────────────────────────────────────╯${NC}"
     echo ""
 
     local current_name
@@ -788,9 +788,9 @@ switch_version_tui() {
     tput cnorm
     clear
 
-    echo -e "${BOLD}${BLUE}┌─────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
     echo -e "${BOLD}${BLUE}│                  phpvm                  │${NC}"
-    echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
+    echo -e "${BOLD}${BLUE}╰─────────────────────────────────────────╯${NC}"
     echo ""
     echo -e "  Switching to ${BOLD}${CYAN}${label}${NC} ..."
     echo ""
@@ -821,9 +821,9 @@ set_project_tui() {
     tput cnorm
     clear
 
-    echo -e "${BOLD}${BLUE}┌─────────────────────────────────────────┐${NC}"
+    echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
     echo -e "${BOLD}${BLUE}│                  phpvm                  │${NC}"
-    echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
+    echo -e "${BOLD}${BLUE}╰─────────────────────────────────────────╯${NC}"
     echo ""
     echo -e "  Set ${BOLD}${CYAN}${ver}${NC} as project PHP?"
     echo -e "  ${DIM}Writes .php-version in current directory${NC}"

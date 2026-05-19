@@ -45,7 +45,7 @@ from pathlib import Path
 try:
     import gi
     gi.require_version('Gtk', '3.0')
-    from gi.repository import Gtk, GLib, Gio
+    from gi.repository import Gtk, Gdk, GLib, Gio
 except ImportError:
     print("Error: python3-gi required.")
     print("Install: sudo apt install python3-gi gir1.2-gtk-3.0")
@@ -67,6 +67,76 @@ for variant in ('AyatanaAppIndicator3', 'AppIndicator3'):
         continue
 
 REFRESH_MS = 15000
+
+_CSS = b"""
+@define-color elephant_body #8892BF;
+@define-color elephant_dark #727FAF;
+@define-color elephant_eye  #3a4882;
+@define-color badge_green   #2da44e;
+@define-color badge_red     #cf222e;
+
+headerbar { min-height: 46px; }
+headerbar .subtitle {
+    color: @elephant_eye;
+    font-family: "Inter", "Adwaita Sans", "Cantarell", sans-serif;
+}
+
+.phpvm-mono {
+    font-family: "JetBrains Mono", "Fira Code", "DejaVu Sans Mono", monospace;
+}
+
+listbox { border-radius: 6px; background: transparent; }
+listboxrow { background-color: @theme_base_color; }
+listboxrow:first-child { border-radius: 6px 6px 0 0; }
+listboxrow:last-child  { border-radius: 0 0 6px 6px; }
+listboxrow + listboxrow { border-top: 1px solid alpha(@borders, 0.5); }
+listboxrow:hover { background-color: alpha(@elephant_body, 0.10); }
+
+.phpvm-card {
+    border: 1px solid alpha(@elephant_dark, 0.35);
+    border-radius: 6px;
+}
+
+.badge {
+    border-radius: 2em;
+    padding: 1px 8px;
+    font-size: smaller;
+    font-weight: bold;
+    color: white;
+    min-height: 0;
+}
+.badge-blue  { background-color: #0969da; }
+.badge-amber { background-color: #bf8700; }
+.badge-green { background-color: @badge_green; }
+.badge-red   { background-color: @badge_red; }
+.badge-gray  { background-color: #6e7781; }
+
+.status-bar {
+    padding: 4px 8px;
+    border-radius: 4px;
+    background-color: alpha(@elephant_body, 0.12);
+}
+
+button.btn-switch {
+    background-image: none;
+    background-color: @badge_green;
+    color: white;
+    border: 1px solid shade(@badge_green, 0.85);
+    text-shadow: none;
+}
+button.btn-switch:hover  { background-color: shade(@badge_green, 1.06); }
+button.btn-switch:active { background-color: shade(@badge_green, 0.92); }
+
+button.btn-active:disabled,
+button.btn-active {
+    background-image: none;
+    background-color: alpha(@badge_green, 0.18);
+    color: @badge_green;
+    border: 1px solid alpha(@badge_green, 0.30);
+    text-shadow: none;
+    opacity: 1;
+}
+"""
 
 _VERSION_RE = re.compile(r"(\d+\.\d+)")
 
@@ -329,7 +399,7 @@ def reload_fpm(version):
 
 class PHPSwitcherWindow(Gtk.Window):
     def __init__(self, on_switch=None):
-        super().__init__(title="phpvm")
+        super().__init__()
         self.set_default_size(720, 520)
         if APP_ICON.startswith("/"):
             try:
@@ -339,13 +409,46 @@ class PHPSwitcherWindow(Gtk.Window):
         else:
             self.set_icon_name(APP_ICON)
 
+        # apply CSS
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(_CSS)
+        screen = Gdk.Screen.get_default()
+        if screen:
+            Gtk.StyleContext.add_provider_for_screen(
+                screen, css_provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+            )
+
         self._on_switch_cb = on_switch
 
-        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
-        outer.set_margin_top(12)
-        outer.set_margin_bottom(12)
-        outer.set_margin_start(12)
-        outer.set_margin_end(12)
+        # header bar
+        hb = Gtk.HeaderBar()
+        hb.set_show_close_button(True)
+        hb.set_title("phpvm")
+        hb.set_subtitle("PHP Version Manager")
+        self.set_titlebar(hb)
+
+        refresh_btn = Gtk.Button()
+        refresh_btn.set_image(Gtk.Image.new_from_icon_name("view-refresh-symbolic", Gtk.IconSize.BUTTON))
+        refresh_btn.set_tooltip_text("Refresh")
+        refresh_btn.connect("clicked", self._on_refresh)
+        hb.pack_end(refresh_btn)
+
+        folder_btn = Gtk.Button()
+        folder_btn.set_image(Gtk.Image.new_from_icon_name("folder-open-symbolic", Gtk.IconSize.BUTTON))
+        folder_btn.set_tooltip_text("Pick project folder…")
+        folder_btn.connect("clicked", self._on_folder)
+        hb.pack_end(folder_btn)
+
+        auto_btn = Gtk.Button(label="Auto-detect")
+        auto_btn.connect("clicked", self._on_auto)
+        hb.pack_start(auto_btn)
+
+        # body
+        outer = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        outer.set_margin_top(14)
+        outer.set_margin_bottom(10)
+        outer.set_margin_start(14)
+        outer.set_margin_end(14)
         self.add(outer)
 
         self.header_label = Gtk.Label(xalign=0)
@@ -356,36 +459,24 @@ class PHPSwitcherWindow(Gtk.Window):
         self.project_label.set_line_wrap(True)
         outer.pack_start(self.project_label, False, False, 0)
 
-        outer.pack_start(Gtk.Separator(), False, False, 4)
+        # card-framed list
+        card = Gtk.Frame()
+        card.get_style_context().add_class("phpvm-card")
+        card.set_shadow_type(Gtk.ShadowType.NONE)
+        outer.pack_start(card, True, True, 0)
 
         scroll = Gtk.ScrolledWindow()
-        scroll.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
-        outer.pack_start(scroll, True, True, 0)
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        card.add(scroll)
 
         self.list_box = Gtk.ListBox()
         self.list_box.set_selection_mode(Gtk.SelectionMode.NONE)
         scroll.add(self.list_box)
 
-        actions = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        outer.pack_start(actions, False, False, 0)
-
-        refresh_btn = Gtk.Button(label="Refresh")
-        refresh_btn.connect("clicked", lambda _: self.refresh())
-        actions.pack_start(refresh_btn, False, False, 0)
-
-        auto_btn = Gtk.Button(label="Auto-detect from project")
-        auto_btn.connect("clicked", self._on_auto)
-        actions.pack_start(auto_btn, False, False, 0)
-
-        folder_btn = Gtk.Button(label="Pick folder…")
-        folder_btn.connect("clicked", self._on_folder)
-        actions.pack_start(folder_btn, False, False, 0)
-
-        outer.pack_start(Gtk.Separator(), False, False, 2)
-
         self.status_label = Gtk.Label(xalign=0)
         self.status_label.set_use_markup(True)
         self.status_label.set_markup("<small> </small>")
+        self.status_label.get_style_context().add_class("status-bar")
         outer.pack_start(self.status_label, False, False, 0)
 
         self.refresh()
@@ -400,22 +491,24 @@ class PHPSwitcherWindow(Gtk.Window):
 
         if current:
             self.header_label.set_markup(
-                f'<big><b>Active:</b> '
-                f'<span foreground="#2da44e">{GLib.markup_escape_text(Path(current).name)}</span>'
-                f'</big>\n<small>{GLib.markup_escape_text(php_v_line)}</small>'
+                f'<b>Active:</b> '
+                f'<span foreground="#2da44e"><b>{GLib.markup_escape_text(Path(current).name)}</b></span>'
+                f'  <span foreground="#57606a"><small>{GLib.markup_escape_text(php_v_line)}</small></span>'
             )
         else:
-            self.header_label.set_markup("<big><b>Active:</b> <i>unknown</i></big>")
+            self.header_label.set_markup("<b>Active:</b> <i>unknown</i>")
 
         proj = detect_project_php()
         if proj:
             self.project_label.set_markup(
-                f"<b>Project requires:</b> PHP {GLib.markup_escape_text(proj)}  "
-                f'<i><small>(cwd: {GLib.markup_escape_text(os.getcwd())})</small></i>'
+                f'<span foreground="#57606a"><small>'
+                f'<b>Project requires PHP {GLib.markup_escape_text(proj)}</b>'
+                f'  — {GLib.markup_escape_text(os.getcwd())}'
+                f'</small></span>'
             )
         else:
             self.project_label.set_markup(
-                "<i>No .php-version or composer.json detected in current directory.</i>"
+                '<span foreground="#57606a"><small><i>No .php-version or composer.json in current directory</i></small></span>'
             )
 
         for v in get_versions():
@@ -428,40 +521,42 @@ class PHPSwitcherWindow(Gtk.Window):
         active = (v == current)
 
         row = Gtk.ListBoxRow()
-        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        box.set_margin_top(6)
-        box.set_margin_bottom(6)
-        box.set_margin_start(8)
-        box.set_margin_end(8)
+        box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        box.set_margin_top(8)
+        box.set_margin_bottom(8)
+        box.set_margin_start(12)
+        box.set_margin_end(12)
         row.add(box)
 
         name_label = Gtk.Label(xalign=0)
         name_label.set_use_markup(True)
+        name_label.get_style_context().add_class("phpvm-mono")
         if active:
             name_label.set_markup(
-                f'<span foreground="#2da44e"><b>● {GLib.markup_escape_text(Path(v).name)}</b></span>'
+                f'<span foreground="#2da44e"><b>{GLib.markup_escape_text(Path(v).name)}</b></span>'
             )
         else:
-            name_label.set_markup(f"  {GLib.markup_escape_text(Path(v).name)}")
-        name_label.set_size_request(140, -1)
+            name_label.set_markup(GLib.markup_escape_text(Path(v).name))
+        name_label.set_size_request(120, -1)
         box.pack_start(name_label, False, False, 0)
 
         badges = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        badges.set_valign(Gtk.Align.CENTER)
         for sapi in get_sapis(ver):
-            badges.pack_start(self._badge(sapi, "#0969da"), False, False, 0)
+            badges.pack_start(self._badge(sapi, "badge-blue"), False, False, 0)
 
         if get_xdebug_status(ver):
-            badges.pack_start(self._badge("xdebug", "#bf8700"), False, False, 0)
+            badges.pack_start(self._badge("xdebug", "badge-amber"), False, False, 0)
 
         fpm = get_fpm_status(ver)
         if fpm == "active":
-            badges.pack_start(self._badge("fpm: running", "#2da44e"), False, False, 0)
+            badges.pack_start(self._badge("fpm ●", "badge-green"), False, False, 0)
         elif fpm in ("inactive", "failed"):
-            badges.pack_start(self._badge(f"fpm: {fpm}", "#6e7781"), False, False, 0)
+            badges.pack_start(self._badge(f"fpm: {fpm}", "badge-gray"), False, False, 0)
 
         eol = is_eol(ver)
         if eol is True:
-            badges.pack_start(self._badge("EOL", "#cf222e"), False, False, 0)
+            badges.pack_start(self._badge("EOL", "badge-red"), False, False, 0)
 
         box.pack_start(badges, True, True, 0)
 
@@ -473,6 +568,7 @@ class PHPSwitcherWindow(Gtk.Window):
 
         switch_btn = Gtk.Button(label="Active" if active else "Switch")
         switch_btn.set_sensitive(not active)
+        switch_btn.get_style_context().add_class("btn-active" if active else "btn-switch")
         switch_btn.connect("clicked", self._on_switch, v)
         box.pack_end(switch_btn, False, False, 0)
 
@@ -482,12 +578,11 @@ class PHPSwitcherWindow(Gtk.Window):
 
         return row
 
-    def _badge(self, text, color):
-        lbl = Gtk.Label()
-        lbl.set_markup(
-            f'<span size="x-small" background="{color}" foreground="white">'
-            f' {GLib.markup_escape_text(text)} </span>'
-        )
+    def _badge(self, text, css_class):
+        lbl = Gtk.Label(label=text)
+        ctx = lbl.get_style_context()
+        ctx.add_class("badge")
+        ctx.add_class(css_class)
         return lbl
 
     def _on_switch(self, _btn, target):
@@ -532,6 +627,11 @@ class PHPSwitcherWindow(Gtk.Window):
             markup = f'<i><span foreground="#6e7781">{GLib.markup_escape_text(msg)}</span></i>'
         self.status_label.set_markup(markup)
 
+    def _on_refresh(self, _btn):
+        clear_caches()
+        self.refresh()
+        self._set_status("Refreshed")
+
     def _on_auto(self, _btn):
         proj = detect_project_php()
         if not proj:
@@ -543,8 +643,8 @@ class PHPSwitcherWindow(Gtk.Window):
         if not target:
             self._set_status(f"PHP {proj} required but not installed", ok=False)
             return
+        self._set_status(f"Project: {os.getcwd()} → PHP {proj}")
         if target == get_current():
-            self._set_status(f"Already on PHP {proj}")
             return
         self._on_switch(None, target)
 
@@ -577,8 +677,8 @@ class PHPSwitcherWindow(Gtk.Window):
         if not target:
             self._set_status(f"PHP {proj} required but not installed", ok=False)
             return
+        self._set_status(f"Project: {folder} → PHP {proj}")
         if target == get_current():
-            self._set_status(f"Already on PHP {proj}")
             return
         self._on_switch(None, target)
 

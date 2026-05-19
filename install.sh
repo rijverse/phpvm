@@ -27,9 +27,9 @@ for arg in "$@"; do
 done
 
 echo ""
-echo -e "${BOLD}${BLUE}┌─────────────────────────────────────────┐${NC}"
-echo -e "${BOLD}${BLUE}│            phpvm Installer              │${NC}"
-echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
+echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
+echo -e "${BOLD}${BLUE}│${NC}  ${BOLD}phpvm Installer${NC}                        ${BOLD}${BLUE}│${NC}"
+echo -e "${BOLD}${BLUE}╰─────────────────────────────────────────╯${NC}"
 echo ""
 
 # determine install paths
@@ -101,7 +101,7 @@ mkdir -p "$BIN_DIR"
 # cli
 
 if [[ "$INSTALL_CLI" == "true" ]]; then
-    info "Installing CLI → ${BIN_DIR}/phpvm"
+    info "Installing CLI → ${CYAN}${BIN_DIR}/phpvm${NC}"
     cp "$SCRIPT_DIR/phpvm.sh" "$BIN_DIR/phpvm"
     chmod +x "$BIN_DIR/phpvm"
     success "CLI installed"
@@ -115,7 +115,7 @@ if [[ "$INSTALL_GUI" == "true" ]]; then
         echo -e "  ${DIM}Install python3 then re-run.${NC}"
         INSTALL_GUI=false
     else
-        info "Installing GUI → ${BIN_DIR}/phpvm-gui"
+        info "Installing GUI → ${CYAN}${BIN_DIR}/phpvm-gui${NC}"
         cp "$SCRIPT_DIR/phpvm-gui.py" "$BIN_DIR/phpvm-gui"
         chmod +x "$BIN_DIR/phpvm-gui"
         success "GUI installed"
@@ -125,13 +125,27 @@ if [[ "$INSTALL_GUI" == "true" ]]; then
             echo -e "  ${DIM}Fix: sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1${NC}"
         fi
 
+        echo ""
+        info "Installing icon → hicolor theme"
+        if [[ $EUID -eq 0 ]]; then
+            ICON_DIR="/usr/share/icons/hicolor/scalable/apps"
+        else
+            ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
+        fi
+        mkdir -p "$ICON_DIR"
+        cp "$SCRIPT_DIR/assets/phpvm.svg" "$ICON_DIR/phpvm.svg"
+        if command -v gtk-update-icon-cache &>/dev/null; then
+            gtk-update-icon-cache -f -t "$(dirname "$(dirname "$ICON_DIR")")" 2>/dev/null || true
+        fi
+        success "Icon installed → ${CYAN}${ICON_DIR}/phpvm.svg${NC}"
+
         mkdir -p "$DESKTOP_DIR"
         cat > "$DESKTOP_DIR/phpvm-gui.desktop" <<EOF
 [Desktop Entry]
 Name=phpvm
 Comment=Switch PHP versions from system tray
 Exec=${BIN_DIR}/phpvm-gui
-Icon=dialog-information
+Icon=phpvm
 Type=Application
 Categories=Development;
 StartupNotify=false
@@ -142,27 +156,10 @@ fi
 
 if [[ "$INSTALL_CLI" == "true" ]]; then
 
-# app icon
-
-echo ""
-info "Installing icon → hicolor theme"
-if [[ $EUID -eq 0 ]]; then
-    ICON_DIR="/usr/share/icons/hicolor/scalable/apps"
-else
-    ICON_DIR="$HOME/.local/share/icons/hicolor/scalable/apps"
-fi
-mkdir -p "$ICON_DIR"
-cp "$SCRIPT_DIR/assets/phpvm.svg" "$ICON_DIR/phpvm.svg"
-# update icon cache so GTK and AppIndicator3 find the icon by name
-if command -v gtk-update-icon-cache &>/dev/null; then
-    gtk-update-icon-cache -f -t "$(dirname "$(dirname "$ICON_DIR")")" 2>/dev/null || true
-fi
-success "Icon installed → ${ICON_DIR}/phpvm.svg"
-
 # shell hooks
 
 echo ""
-info "Installing shell hooks → ${HOOK_DIR}/"
+info "Installing shell hooks → ${CYAN}${HOOK_DIR}/${NC}"
 mkdir -p "$HOOK_DIR"
 cp "$SCRIPT_DIR/shell/php-auto.bash" "$HOOK_DIR/"
 cp "$SCRIPT_DIR/shell/php-auto.zsh"  "$HOOK_DIR/"
@@ -203,7 +200,7 @@ if [[ "$ans" =~ ^[Yy]$ ]]; then
             sudo install -o root -g root -m 440 "$SUDOERS_TMP" "$SUDOERS"
             rm -f "$SUDOERS_TMP"
         fi
-        success "Sudoers rule added → ${SUDOERS}"
+        success "Sudoers rule added → ${CYAN}${SUDOERS}${NC}"
     else
         err "Sudoers validation failed — not installed"
         rm -f "$SUDOERS_TMP"
@@ -250,7 +247,7 @@ if [[ -n "$RC" ]]; then
                 echo "# phpvm auto-switch"
                 echo "$HOOK_LINE"
             } >> "$RC"
-            success "Hook added to ${RC}"
+            success "Hook added to ${CYAN}${RC}${NC}"
         fi
     fi
 else
