@@ -1,6 +1,11 @@
 #!/bin/bash
 # phpvm - PHP Version Manager v2.1.0
 
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
+    echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
+    exit 1
+fi
+
 VERSION="2.2.0"
 
 RED='\033[0;31m'
@@ -695,6 +700,10 @@ cmd_help() {
     echo -e "  phpvm --doctor               Diagnose installation, sudo, and hook setup"
     echo -e "  phpvm --version              Show tool version"
     echo -e "  phpvm --help                 This help"
+    echo ""
+    echo -e "${BOLD}GUI (separate binary, optional):${NC}"
+    echo -e "  phpvm-gui                    Tray applet"
+    echo -e "  phpvm-gui --window           Standalone GTK picker window (no tray)"
     echo ""
     echo -e "${BOLD}Shell hook (auto-switch on cd):${NC}"
     echo -e "  ${DIM}System install (/etc/phpvm):${NC}"
