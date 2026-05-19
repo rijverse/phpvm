@@ -46,7 +46,7 @@ Under the hood it's just `update-alternatives --set php`. Nothing exotic. The wh
 ## Installing
 
 ```bash
-git clone git@github.com:Rijoanul-Shanto/phpvm.git
+git clone https://github.com/Rijoanul-Shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
@@ -88,6 +88,8 @@ phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
 | `phpvm --enable-hook [shell]` | Adds the auto-switch hook to your rc |
 | `phpvm --disable-hook [shell]` | Removes it (rc is backed up first) |
 | `phpvm --window` | Launches the GTK picker window, then frees the terminal |
+| `phpvm-gui` | Tray applet (see [The GUI](#the-gui)) |
+| `phpvm-gui --window` | Standalone GTK picker window, no tray |
 | `phpvm --self-update` | Re-runs the installer against the latest commit |
 | `phpvm --doctor` | Diagnoses install location, sudoers rule, and shell-hook setup |
 | `phpvm --help` | Everything else |
@@ -125,7 +127,7 @@ echo "8.1" > .php-version
 phpvm --set-project 8.1
 ```
 
-phpvm walks up the directory tree looking for `.php-version`. If there isn't one, it reads `require.php` from `composer.json` and picks the highest installed version that satisfies the constraint. Caret, tilde, ranges, `|` unions all the constraint syntaxes Composer accepts.
+phpvm walks up the directory tree looking for `.php-version`. If there isn't one, it reads `require.php` from `composer.json` and picks the highest installed version that satisfies the constraint. Caret, tilde, ranges, `|` unions — all the constraint syntaxes Composer accepts.
 
 ## Shell hook (auto-switch on `cd`)
 
