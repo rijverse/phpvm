@@ -15,23 +15,7 @@ If you've been juggling `update-alternatives --set php` by hand every time you s
 
 </div>
 
-```
-┌─────────────────────────────────────────┐
-│                  phpvm                  │
-└─────────────────────────────────────────┘
-
-  Active:  php8.2  (PHP 8.2.x)
-  Project: 8.1
-
-  ↑/↓  navigate   Enter  select   p  set-project   q  quit
-
-  ────────────────────────────────────────
-
-    php7.4
-    php8.1                               
-  ▌ php8.2                                 ● active
-    php8.3
-```
+![phpvm TUI](assets/tui.png)
 
 ## What it does
 
@@ -107,6 +91,10 @@ phpvm-gui              # tray applet
 phpvm-gui --window     # detached GTK picker window, no tray
 phpvm --window         # same window, launched from the shell (terminal freed)
 ```
+
+![phpvm GUI window](assets/gui-window.png)
+
+![phpvm tray menu](assets/gui-tray-menu.png)
 
 The window view shows each version with:
 
