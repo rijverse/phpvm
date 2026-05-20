@@ -48,6 +48,9 @@ jobs:
         ubuntu: ['20.04', '22.04', '24.04']
     container:
       image: ubuntu:${{ matrix.ubuntu }}
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
@@ -76,6 +79,9 @@ jobs:
         ubuntu: ['20.04', '22.04', '24.04']
     container:
       image: ubuntu:${{ matrix.ubuntu }}
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Checkout
