@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>phpvm — README showcase</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --bg-0: #0b0817;
+            --bg-1: #14102a;
+            --accent: #8a76d6;
+            --accent-2: #4f378b;
+            --ok: #7ee2b8;
+            --paper: #f3f0ea;
+            --muted: rgba(255,255,255,0.6);
+            --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        html, body { margin: 0; background: #efece5; font-family: var(--sans); color: #111; -webkit-font-smoothing: antialiased; }
+        body { padding: 56px 40px 80px; }
+
+        .page-head {
+            max-width: 1320px; margin: 0 auto 36px; padding: 0 4px;
+        }
+        .page-head .kicker {
+            font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em;
+            text-transform: uppercase; color: rgba(20,15,40,0.6);
+        }
+        .page-head h1 {
+            font-size: 32px; font-weight: 700; letter-spacing: -0.025em;
+            margin: 8px 0 6px; color: #1a1530;
+        }
+        .page-head p {
+            margin: 0; color: rgba(20,15,40,0.6); font-size: 15px;
+            max-width: 760px; line-height: 1.5;
+        }
+
+        .heroes {
+            max-width: 1320px; margin: 0 auto;
+            display: flex; flex-direction: column; gap: 48px;
+        }
+
+        .section-head {
+            display: flex; align-items: baseline; gap: 14px;
+            margin-bottom: 16px;
+        }
+        .section-head .num {
+            font-family: var(--mono); font-size: 12px;
+            color: rgba(20,15,40,0.6);
+            background: #fff;
+            border: 1px solid rgba(20,15,40,0.08);
+            padding: 4px 8px; border-radius: 6px;
+        }
+        .section-head .ttl {
+            font-weight: 600; font-size: 18px; letter-spacing: -0.01em;
+            color: #1a1530;
+        }
+        .section-head .desc {
+            font-size: 14px; color: rgba(20,15,40,0.55);
+        }
+
+        .stage {
+            border-radius: 18px; overflow: hidden;
+            box-shadow:
+                    0 24px 60px -30px rgba(20,15,40,0.45),
+                    0 0 0 1px rgba(20,15,40,0.06);
+            background: #000;
+            align-self: flex-start;
+        }
+
+        /* ============ HERO ============ */
+        .hero {
+            width: 1280px;
+            /* height set per-hero */
+            background:
+                    radial-gradient(900px 600px at 80% 20%, rgba(138,118,214,0.20), transparent 60%),
+                    radial-gradient(900px 800px at 10% 100%, rgba(79,55,140,0.30), transparent 65%),
+                    linear-gradient(180deg, var(--bg-1) 0%, var(--bg-0) 100%);
+            color: var(--paper);
+            position: relative;
+            overflow: hidden;
+            padding: 56px 72px;
+            box-sizing: border-box;
+            display: grid;
+            grid-template-rows: auto 1fr auto;
+            gap: 28px;
+        }
+
+        /* subtle grid */
+        .hero::before {
+            content: "";
+            position: absolute; inset: 0;
+            background-image:
+                    linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+            background-size: 36px 36px;
+            mask-image: radial-gradient(900px 600px at 50% 60%, #000, transparent 78%);
+            pointer-events: none;
+        }
+
+        /* ----- top brand row ----- */
+        .top {
+            display: flex; align-items: center; justify-content: space-between;
+            position: relative; z-index: 2;
+        }
+        .brand {
+            display: flex; align-items: center; gap: 14px;
+        }
+        .brand .mark {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #c2c8e6, #8892BF 55%, #727FAF);
+            display: grid; place-items: center;
+            padding: 8px; box-sizing: border-box;
+            box-shadow: 0 6px 20px -6px rgba(138,118,214,0.5),
+            0 0 0 1px rgba(255,255,255,0.08) inset;
+        }
+        .brand .mark img { display: block; width: 100%; height: 100%; }
+        .brand .name {
+            font-size: 22px; font-weight: 700; letter-spacing: -0.02em;
+        }
+        .brand .name .v { color: var(--accent); font-style: italic; font-weight: 500; }
+        .brand .sep { width: 1px; height: 22px; background: rgba(255,255,255,0.12); }
+        .brand .tag {
+            font-family: var(--mono); font-size: 12px; color: var(--muted);
+            letter-spacing: 0.02em;
+        }
+        .meta { display: flex; align-items: center; gap: 8px; }
+        .meta .pill {
+            font-family: var(--mono); font-size: 11px;
+            padding: 5px 9px; border-radius: 999px;
+            border: 1px solid rgba(255,255,255,0.12);
+            color: var(--muted);
+        }
+        .meta .pill.feature {
+            background: rgba(138,118,214,0.12);
+            border-color: rgba(138,118,214,0.4);
+            color: var(--accent);
+        }
+
+        /* ----- center stage: screenshot + callout ----- */
+        .center {
+            position: relative;
+            align-self: center; justify-self: center;
+            width: 100%;
+            display: flex; justify-content: center;
+        }
+
+        .shot-card {
+            position: relative;
+            border-radius: 16px;
+            padding: 24px 28px 20px;
+            background:
+                    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.01)),
+                    rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow:
+                    0 30px 80px -30px rgba(0,0,0,0.6),
+                    0 0 0 1px rgba(255,255,255,0.04) inset;
+            width: 100%;
+            /* max-width set per-hero */
+        }
+        .shot-card .label-row {
+            display: flex; align-items: center; justify-content: space-between;
+            margin-bottom: 12px;
+            font-family: var(--mono); font-size: 11px;
+            color: rgba(255,255,255,0.5);
+            letter-spacing: 0.08em; text-transform: uppercase;
+        }
+        .shot-card .label-row .dots { display: flex; gap: 6px; }
+        .shot-card .label-row .dots i {
+            width: 9px; height: 9px; border-radius: 50%;
+            background: rgba(255,255,255,0.18);
+        }
+
+        .shot-frame {
+            position: relative;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #1a1530;
+            box-shadow:
+                    0 0 0 1px rgba(255,255,255,0.06) inset,
+                    0 18px 50px -20px rgba(0,0,0,0.55);
+        }
+        .shot-frame img { display: block; width: 100%; height: auto; }
+
+        /* highlight ring — position via CSS vars per-hero */
+        .highlight {
+            position: absolute;
+            left: var(--hl-left);
+            top: var(--hl-top);
+            width: var(--hl-w);
+            height: var(--hl-h);
+            border-radius: var(--hl-r, 8px);
+            box-shadow:
+                    0 0 0 2px var(--accent),
+                    0 0 0 6px rgba(138,118,214,0.18),
+                    0 0 40px 6px rgba(138,118,214,0.45);
+            pointer-events: none;
+            animation: ringPulse 2.4s ease-in-out infinite;
+        }
+        @keyframes ringPulse {
+            0%, 100% {
+                box-shadow:
+                        0 0 0 2px var(--accent),
+                        0 0 0 6px rgba(138,118,214,0.18),
+                        0 0 40px 6px rgba(138,118,214,0.45);
+            }
+            50% {
+                box-shadow:
+                        0 0 0 2px var(--accent),
+                        0 0 0 10px rgba(138,118,214,0.10),
+                        0 0 60px 14px rgba(138,118,214,0.55);
+            }
+        }
+
+        /* top callout */
+        .callout {
+            position: absolute;
+            top: var(--call-top, -10px);
+            left: var(--call-x);
+            transform: translateY(-100%);
+            display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+            z-index: 3;
+        }
+        .callout .bubble {
+            font-family: var(--mono); font-size: 12px;
+            background: var(--accent);
+            color: #160a2a;
+            font-weight: 600;
+            padding: 6px 11px;
+            border-radius: 999px;
+            letter-spacing: 0.02em;
+            box-shadow: 0 6px 18px -4px rgba(138,118,214,0.5);
+            white-space: nowrap;
+        }
+        .callout .leader {
+            width: 1px;
+            height: var(--call-leader, 28px);
+            background: linear-gradient(180deg, var(--accent), rgba(138,118,214,0));
+            margin-left: 18px;
+        }
+
+        /* bottom annotation */
+        .annot-below {
+            position: absolute;
+            bottom: -2px;
+            left: var(--annot-x);
+            transform: translateY(100%);
+            display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+            z-index: 3;
+        }
+        .annot-below .leader {
+            width: 1px; height: var(--annot-leader, 22px);
+            background: linear-gradient(0deg, rgba(126,226,184,0.6), rgba(126,226,184,0));
+            margin-left: 18px;
+        }
+        .annot-below .text {
+            font-family: var(--mono); font-size: 11px;
+            color: var(--ok);
+            letter-spacing: 0.06em; text-transform: uppercase;
+            display: flex; align-items: center; gap: 6px;
+            white-space: nowrap;
+        }
+        .annot-below .text .dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--ok);
+            box-shadow: 0 0 10px rgba(126,226,184,0.6);
+        }
+
+        .caption-strip {
+            margin-top: 18px;
+            display: flex; align-items: center; justify-content: space-between;
+            font-family: var(--mono); font-size: 11px;
+            color: rgba(255,255,255,0.45);
+            letter-spacing: 0.04em;
+        }
+        .caption-strip code {
+            color: var(--paper);
+            background: rgba(255,255,255,0.05);
+            padding: 3px 7px; border-radius: 5px;
+            font-size: 11px;
+        }
+
+        /* ----- bottom: tagline ----- */
+        .bottom {
+            position: relative; z-index: 2;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: end;
+            gap: 40px;
+        }
+        .bottom h2 {
+            font-size: 40px;
+            line-height: 1.05;
+            letter-spacing: -0.03em;
+            font-weight: 800;
+            margin: 0;
+            max-width: 660px;
+        }
+        .bottom h2 em {
+            font-style: italic; font-weight: 400; color: var(--accent);
+        }
+        .bottom .right-col {
+            display: flex; flex-direction: column; align-items: flex-end; gap: 10px;
+            text-align: right;
+        }
+        .bottom .right-col .line {
+            font-family: var(--mono); font-size: 12px;
+            color: var(--muted);
+        }
+        .bottom .right-col .cmd {
+            font-family: var(--mono); font-size: 13px;
+            color: var(--paper);
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.10);
+            padding: 8px 12px; border-radius: 8px;
+            display: inline-flex; gap: 8px; align-items: center;
+        }
+        .bottom .right-col .cmd .p { color: var(--accent); }
+    </style>
+</head>
+<body>
+
+<div class="page-head">
+    <div class="kicker">phpvm · readme assets</div>
+    <h1>Four feature spotlights</h1>
+    <p>One hero treatment per surface — taskbar indicator, tray menu, full GUI window, and TUI picker. Each one rings the bit that shows the active PHP version, so a README skimmer gets the point instantly.</p>
+</div>
+
+<div class="heroes">
+
+    <!-- ============================================== -->
+    <!-- 01 — TASKBAR INDICATOR                          -->
+    <!-- ============================================== -->
+    <section data-screen-label="01 Taskbar indicator">
+        <div class="section-head">
+            <span class="num">01</span>
+            <span class="ttl">Taskbar indicator</span>
+            <span class="desc">Tray shows the live PHP version.</span>
+        </div>
+        <div class="stage">
+            <div class="hero" style="
+        height: 720px;
+        --hl-left: 46%; --hl-top: 1%; --hl-w: 25%; --hl-h: 13%;
+        --call-x: 59%; --annot-x: 59%;
+      ">
+                <div class="top">
+                    <div class="brand">
+                        <div class="mark"><img src="../assets/phpvm.svg" alt="phpvm" /></div>
+                        <div class="name">php<span class="v">vm</span></div>
+                        <div class="sep"></div>
+                        <div class="tag">// a small PHP version switcher for linux</div>
+                    </div>
+                    <div class="meta">
+                        <span class="pill feature">tray indicator</span>
+                        <span class="pill">linux</span>
+                        <span class="pill">MIT</span>
+                    </div>
+                </div>
+                <div class="center">
+                    <div class="shot-card" style="max-width: 760px;">
+                        <div class="label-row">
+                            <span>system tray · gnome panel</span>
+                            <span class="dots"><i></i><i></i><i></i></span>
+                        </div>
+                        <div class="shot-frame">
+                            <img src="../assets/taskbar-php84.png" alt="System tray showing PHP 8.4 active" />
+                            <div class="highlight" aria-hidden="true"></div>
+                            <div class="callout">
+                                <div class="bubble">active PHP version</div>
+                                <div class="leader"></div>
+                            </div>
+                            <div class="annot-below">
+                                <div class="leader"></div>
+                                <div class="text"><span class="dot"></span>updated by phpvm</div>
+                            </div>
+                        </div>
+                        <div class="caption-strip">
+                            <span>tray indicator reflects <code>phpvm --auto</code> on every <code>cd</code></span>
+                            <span>no shell reload required</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <h2>Know which PHP <em>is actually running</em> — at a glance.</h2>
+                    <div class="right-col">
+                        <div class="line">install</div>
+                        <div class="cmd"><span class="p">$</span> sudo bash install.sh</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 02 — TRAY MENU                                  -->
+    <!-- ============================================== -->
+    <section data-screen-label="02 Tray menu">
+        <div class="section-head">
+            <span class="num">02</span>
+            <span class="ttl">Tray menu</span>
+            <span class="desc">One-click switching from the panel.</span>
+        </div>
+        <div class="stage">
+            <div class="hero" style="
+        height: 820px;
+        --hl-left: 67%; --hl-top: 50%; --hl-w: 32%; --hl-h: 7.2%;
+        --hl-r: 4px;
+        --call-x: 83%; --call-leader: 36px;
+        --annot-x: 83%; --annot-leader: 30px;
+      ">
+                <div class="top">
+                    <div class="brand">
+                        <div class="mark"><img src="../assets/phpvm.svg" alt="phpvm" /></div>
+                        <div class="name">php<span class="v">vm</span></div>
+                        <div class="sep"></div>
+                        <div class="tag">// tray menu · GTK + AppIndicator3</div>
+                    </div>
+                    <div class="meta">
+                        <span class="pill feature">one-click switch</span>
+                        <span class="pill">GTK3</span>
+                        <span class="pill">linux</span>
+                    </div>
+                </div>
+                <div class="center">
+                    <div class="shot-card" style="max-width: 1040px;">
+                        <div class="label-row">
+                            <span>tray icon · right-click menu</span>
+                            <span class="dots"><i></i><i></i><i></i></span>
+                        </div>
+                        <div class="shot-frame">
+                            <img src="../assets/gui-tray-menu.png" alt="phpvm tray menu showing PHP 8.3 active with checkmark" />
+                            <div class="highlight" aria-hidden="true"></div>
+                            <div class="callout">
+                                <div class="bubble">active · ✓ checked</div>
+                                <div class="leader"></div>
+                            </div>
+                            <div class="annot-below">
+                                <div class="leader"></div>
+                                <div class="text"><span class="dot"></span>click any version to switch</div>
+                            </div>
+                        </div>
+                        <div class="caption-strip">
+                            <span><code>Auto-detect from project</code> reads <code>.php-version</code> for the current cwd</span>
+                            <span>or pick a folder explicitly</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <h2>Switch PHP from the panel. <em>Without leaving your work.</em></h2>
+                    <div class="right-col">
+                        <div class="line">launch tray</div>
+                        <div class="cmd"><span class="p">$</span> phpvm-gui --tray</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 03 — GUI WINDOW                                 -->
+    <!-- ============================================== -->
+    <section data-screen-label="03 GUI window">
+        <div class="section-head">
+            <span class="num">03</span>
+            <span class="ttl">GUI window</span>
+            <span class="desc">Every installed PHP with per-version badges.</span>
+        </div>
+        <div class="stage">
+            <div class="hero" style="
+        height: 820px;
+        --hl-left: 3.5%; --hl-top: 74%; --hl-w: 93.5%; --hl-h: 11%;
+        --hl-r: 6px;
+        --call-x: 8%; --call-leader: 30px;
+        --annot-x: 80%; --annot-leader: 26px;
+      ">
+                <div class="top">
+                    <div class="brand">
+                        <div class="mark"><img src="../assets/phpvm.svg" alt="phpvm" /></div>
+                        <div class="name">php<span class="v">vm</span></div>
+                        <div class="sep"></div>
+                        <div class="tag">// GTK window · SAPI · xdebug · FPM · EOL badges</div>
+                    </div>
+                    <div class="meta">
+                        <span class="pill feature">per-version status</span>
+                        <span class="pill">GTK3</span>
+                        <span class="pill">linux</span>
+                    </div>
+                </div>
+                <div class="center">
+                    <div class="shot-card" style="max-width: 1060px;">
+                        <div class="label-row">
+                            <span>phpvm-gui · main window</span>
+                            <span class="dots"><i></i><i></i><i></i></span>
+                        </div>
+                        <div class="shot-frame">
+                            <img src="../assets/gui-window.png" alt="phpvm GUI window with PHP 8.3 active row highlighted" />
+                            <div class="highlight" aria-hidden="true"></div>
+                            <div class="callout">
+                                <div class="bubble">active row · php 8.3</div>
+                                <div class="leader"></div>
+                            </div>
+                            <div class="annot-below">
+                                <div class="leader"></div>
+                                <div class="text"><span class="dot"></span>switch / restart FPM inline</div>
+                            </div>
+                        </div>
+                        <div class="caption-strip">
+                            <span>badges: <code>cli</code> · <code>fpm</code> · <code>apache2</code> · <code>xdebug</code> · <code>EOL</code></span>
+                            <span>FPM status pill flips live as you switch</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <h2>See every PHP — and what it can do — <em>at a glance.</em></h2>
+                    <div class="right-col">
+                        <div class="line">open the window</div>
+                        <div class="cmd"><span class="p">$</span> phpvm-gui</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 04 — TUI                                        -->
+    <!-- ============================================== -->
+    <section data-screen-label="04 TUI">
+        <div class="section-head">
+            <span class="num">04</span>
+            <span class="ttl">Terminal UI</span>
+            <span class="desc">Keyboard-driven picker, right where you live.</span>
+        </div>
+        <div class="stage">
+            <div class="hero" style="
+        height: 840px;
+        --hl-left: 3.2%; --hl-top: 54.5%; --hl-w: 93.6%; --hl-h: 7.5%;
+        --hl-r: 4px;
+        --call-x: 25%; --call-leader: 30px;
+        --annot-x: 70%; --annot-leader: 26px;
+      ">
+                <div class="top">
+                    <div class="brand">
+                        <div class="mark"><img src="../assets/phpvm.svg" alt="phpvm" /></div>
+                        <div class="name">php<span class="v">vm</span></div>
+                        <div class="sep"></div>
+                        <div class="tag">// terminal-native version picker</div>
+                    </div>
+                    <div class="meta">
+                        <span class="pill feature">keyboard-driven</span>
+                        <span class="pill">bash · zsh · fish</span>
+                        <span class="pill">no GUI required</span>
+                    </div>
+                </div>
+                <div class="center">
+                    <div class="shot-card" style="max-width: 1100px;">
+                        <div class="label-row">
+                            <span>phpvm · interactive TUI</span>
+                            <span class="dots"><i></i><i></i><i></i></span>
+                        </div>
+                        <div class="shot-frame">
+                            <img src="../assets/tui.png" alt="phpvm TUI showing php8.2 selected as the active version" />
+                            <div class="highlight" aria-hidden="true"></div>
+                            <div class="callout">
+                                <div class="bubble">selected · ● active</div>
+                                <div class="leader"></div>
+                            </div>
+                            <div class="annot-below">
+                                <div class="leader"></div>
+                                <div class="text"><span class="dot"></span>↑/↓ navigate · enter to switch</div>
+                            </div>
+                        </div>
+                        <div class="caption-strip">
+                            <span><code>p</code> pin as project version · <code>q</code> bail</span>
+                            <span>uses <code>update-alternatives</code> under the hood</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <h2>A picker that <em>lives in your terminal.</em></h2>
+                    <div class="right-col">
+                        <div class="line">just run it</div>
+                        <div class="cmd"><span class="p">$</span> phpvm</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+</div>
+
+</body>
+</html>
