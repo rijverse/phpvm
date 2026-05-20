@@ -20,14 +20,6 @@ REVERSE='\033[7m'
 
 selected_index=0
 
-PHPVM_ICON=dialog-information
-for _p in /usr/share/icons/hicolor/scalable/apps/phpvm.svg \
-           "$HOME/.local/share/icons/hicolor/scalable/apps/phpvm.svg" \
-           /usr/local/share/icons/hicolor/scalable/apps/phpvm.svg; do
-    [[ -f "$_p" ]] && PHPVM_ICON="$_p" && break
-done
-unset _p
-
 # helpers
 
 get_php_versions() {
