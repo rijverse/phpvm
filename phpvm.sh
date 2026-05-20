@@ -1,5 +1,5 @@
 #!/bin/bash
-# phpvm - PHP Version Manager v2.1.0
+# phpvm - PHP Version Manager v2.2.0
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
     echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
@@ -1052,7 +1052,11 @@ set_project_tui() {
     local version="$1"
     local label
     label=$(basename "$version")
-    local ver="${label#php}"
+    local raw="${label#php}"
+    local ver
+    if ! ver=$(normalize_version "$raw"); then
+        ver="$raw"
+    fi
 
     tput cnorm
     clear
@@ -1064,6 +1068,17 @@ set_project_tui() {
     echo -e "  Set ${BOLD}${CYAN}${ver}${NC} as project PHP?"
     echo -e "  ${DIM}Writes .php-version in current directory${NC}"
     echo ""
+
+    if [[ -f .php-version ]]; then
+        local existing
+        existing=$(< .php-version)
+        existing="${existing//[[:space:]]/}"
+        if [[ -n "$existing" && "$existing" != "$ver" ]]; then
+            echo -e "  ${YELLOW}!${NC} .php-version already says ${BOLD}${existing}${NC} — overwrite?"
+            echo ""
+        fi
+    fi
+
     echo -e "  ${DIM}[y] confirm   [n] cancel${NC}"
     echo ""
 

@@ -27,24 +27,29 @@ sep "--help"
 bash "$PHPVM" --help >/dev/null 2>&1 \
     && ok "--help exits 0" || fail "--help exits non-zero"
 
-sep "list"
+sep "--list"
 # exits 1 when no PHP installed — that's expected, not a crash
-out=$(bash "$PHPVM" list 2>&1); rc=$?
+out=$(bash "$PHPVM" --list 2>&1); rc=$?
 if [[ $rc -eq 0 ]] || [[ "$out" == *"No PHP"* || "$out" == *"php"* ]]; then
-    ok "list runs without crash (rc=${rc})"
+    ok "--list runs without crash (rc=${rc})"
 else
-    fail "list crashed unexpectedly (rc=${rc}): ${out}"
+    fail "--list crashed unexpectedly (rc=${rc}): ${out}"
 fi
 
-sep "current"
-out=$(bash "$PHPVM" current 2>&1); rc=$?
+sep "--current"
+out=$(bash "$PHPVM" --current 2>&1); rc=$?
 [[ $rc -eq 0 || "$out" == *"No active"* || "$out" == *"none"* || "$out" == *"php"* ]] \
-    && ok "current runs without crash" || fail "current crashed (rc=${rc}): ${out}"
+    && ok "--current runs without crash" || fail "--current crashed (rc=${rc}): ${out}"
 
-sep "use (no version arg — expect usage error, not crash)"
+sep "--set (no version arg — expect usage error, not crash)"
+out=$(bash "$PHPVM" --set 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"Usage"* ]] \
+    && ok "--set without arg exits non-zero with usage message" || fail "--set without arg behaved unexpectedly (rc=${rc}): ${out}"
+
+sep "unknown subcommand (regression — bare positional must fail)"
 out=$(bash "$PHPVM" use 2>&1); rc=$?
-[[ $rc -ne 0 && -n "$out" ]] \
-    && ok "use without arg exits non-zero with message" || fail "use without arg behaved unexpectedly (rc=${rc})"
+[[ $rc -ne 0 && "$out" == *"Unknown option"* ]] \
+    && ok "unknown 'use' is rejected" || fail "unknown 'use' was not rejected as expected (rc=${rc}): ${out}"
 
 sep "bash version guard"
 guard=$(grep -c "BASH_VERSINFO" "$PHPVM") 2>/dev/null || guard=0
@@ -53,11 +58,11 @@ guard=$(grep -c "BASH_VERSINFO" "$PHPVM") 2>/dev/null || guard=0
 
 sep "mapfile present"
 grep -q "mapfile" "$PHPVM" \
-    && ok "mapfile used (bash 4.0+ required — documented)" || ok "mapfile not used"
+    && ok "mapfile used (bash 4.0+)" || ok "mapfile not used"
 
 sep "local -n present"
 grep -q "local -n" "$PHPVM" \
-    && ok "local -n used (bash 4.3+ required — documented)" || ok "local -n not used"
+    && ok "local -n used (bash 4.3+ required)" || ok "local -n not used"
 
 sep "update-alternatives available"
 command -v update-alternatives &>/dev/null \

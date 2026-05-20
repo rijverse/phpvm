@@ -8,7 +8,7 @@ A small PHP version switcher for Linux. TUI in the terminal, optional system tra
 
 If you've been juggling `update-alternatives --set php` by hand every time you switch between a Laravel 9 app on 8.1 and a fresh Symfony repo on 8.3, this is for you.
 
-![Bash](https://img.shields.io/badge/Bash-4%2B-1f425f?logo=gnubash&logoColor=white)
+![Bash](https://img.shields.io/badge/Bash-4.3%2B-1f425f?logo=gnubash&logoColor=white)
 ![Python](https://img.shields.io/badge/Python-3-3776ab?logo=python&logoColor=white)
 ![Linux](https://img.shields.io/badge/Linux-update--alternatives-fcc624?logo=linux&logoColor=black)
 ![License](https://img.shields.io/badge/License-MIT-green)
@@ -59,13 +59,13 @@ phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
 ### What you need
 
 - Linux with `update-alternatives`. Tested on **Ubuntu 20.04 / 22.04 / 24.04** in CI; **Debian 11+** and Ubuntu derivatives (Mint, Pop!_OS, Zorin, elementary) on the equivalent releases should work too.
-- Bash 4+.
+- Bash 4.3+ (uses `local -n`).
 - For the GUI: `python3-gi`, GTK3, AppIndicator3. The install command is in the GUI section below.
 
 ## CLI
 Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin as the project version, <kbd>q</kbd> to bail.
 
-<img src="assets/tui.png" alt="phpvm TUI" width="500"/>
+<img src="assets/tui.png" alt="phpvm TUI" width="700"/>
 
 | Command | What it does |
 |---|---|
@@ -74,6 +74,7 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 | `phpvm --current` | Prints whichever one is active |
 | `phpvm --set 8.2` | Switches globally to 8.2 |
 | `phpvm --auto` | Reads `.php-version` / `composer.json` and switches |
+| `phpvm --auto --print [dir]` | Prints the resolved project PHP version without switching |
 | `phpvm --set-project 8.2` | Writes `.php-version` here |
 | `phpvm --enable-hook [shell]` | Adds the auto-switch hook to your rc |
 | `phpvm --disable-hook [shell]` | Removes it (rc is backed up first) |
@@ -81,14 +82,14 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 | `phpvm-gui` | Tray applet (see [The GUI](#the-gui)) |
 | `phpvm-gui --window` | Standalone GTK picker window, no tray |
 | `phpvm --self-update` | Re-runs the installer against the latest commit |
-| `phpvm --doctor` | Diagnoses install location, sudoers rule, and shell-hook setup |
+| `phpvm --doctor` | Full diagnostic — CLI install, PHP runtimes, FPM, sudoers, shell hook, GUI, project |
 | `phpvm --help` | Everything else |
 
 Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
 
 ## The GUI
 
-<img src="assets/gui-tray-menu.png" alt="phpvm tray menu" width="500"/>
+<img src="assets/gui-tray-menu.png" alt="phpvm tray menu" width="700"/>
 
 Two shapes, same binary.
 

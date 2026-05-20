@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""phpvm system tray GUI — requires python3-gi, GTK3, and AppIndicator3.
+"""phpvm system tray GUI — requires python3-gi, GTK3, and an AppIndicator
+backend. Ayatana AppIndicator3 is preferred; legacy AppIndicator3 also works.
 
     sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
 """

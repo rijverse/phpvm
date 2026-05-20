@@ -5,7 +5,7 @@ Patches welcome. The core is intentionally simple — a bash script and a Python
 ## Setup
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/phpvm.git
+git clone https://github.com/rijoanul-shanto/phpvm.git
 cd phpvm
 ```
 
@@ -19,7 +19,7 @@ bash phpvm.sh
 ## A few ground rules
 
 - Keep `phpvm.sh` self-contained. No dependencies beyond `update-alternatives` and standard bash tools
-- Target Bash 4.0+, avoid 5-only builtins
+- Target Bash 4.3+ (`local -n` is required); avoid 5-only builtins
 - Don't break keyboard navigation in the TUI
 - Run `shellcheck phpvm.sh` before opening a PR and fix everything it flags
 

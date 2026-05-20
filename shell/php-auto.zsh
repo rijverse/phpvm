@@ -1,6 +1,7 @@
-# PHP Switcher - Zsh auto-switch hook
+# zsh auto switch hook
 # Add to ~/.zshrc:
-#   source /etc/phpvm/php-auto.zsh
+#   source /etc/phpvm/php-auto.zsh     (system install)
+#   source ~/.phpvm/php-auto.zsh       (user install)
 
 autoload -U add-zsh-hook
 

@@ -41,6 +41,8 @@ ICONS=(
 if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
     SUDO_HOME=$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)
     if [[ -n "$SUDO_HOME" && "$SUDO_HOME" != "$HOME" ]]; then
+        BIN_DIRS+=("${SUDO_HOME}/.local/bin")
+        HOOK_DIRS+=("${SUDO_HOME}/.phpvm")
         AUTOSTARTS+=("${SUDO_HOME}/.config/autostart/phpvm-gui.desktop")
         DESKTOPS+=("${SUDO_HOME}/.local/share/applications/phpvm-gui.desktop")
         ICONS+=("${SUDO_HOME}/.local/share/icons/hicolor/scalable/apps/phpvm.svg")
@@ -144,8 +146,14 @@ clean_rc() {
     success "Cleaned hook from ${rc}  ${DIM}(backup: ${rc}.phpvm-backup)${NC}"
 }
 
-for rc in "$HOME/.bashrc" "$HOME/.zshrc" "$HOME/.config/fish/config.fish"; do
-    clean_rc "$rc"
+RC_HOMES=("$HOME")
+if [[ $EUID -eq 0 && -n "${SUDO_HOME:-}" && "$SUDO_HOME" != "$HOME" ]]; then
+    RC_HOMES+=("$SUDO_HOME")
+fi
+for h in "${RC_HOMES[@]}"; do
+    for rc in "$h/.bashrc" "$h/.zshrc" "$h/.config/fish/config.fish"; do
+        clean_rc "$rc"
+    done
 done
 
 echo ""

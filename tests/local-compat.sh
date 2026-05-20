@@ -1,11 +1,11 @@
 #!/bin/bash
 # Run compat tests locally via Docker across Ubuntu versions.
-# Usage: bash tests/local-compat.sh [18.04|20.04|22.04|24.04|all]
+# Usage: bash tests/local-compat.sh [20.04|22.04|24.04|all]
 # Requires: docker
 
 set -euo pipefail
 
-VERSIONS=('18.04' '20.04' '22.04' '24.04')
+VERSIONS=('20.04' '22.04' '24.04')
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TARGET="${1:-all}"
 
