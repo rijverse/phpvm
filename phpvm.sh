@@ -549,118 +549,354 @@ cmd_self_update() {
     echo -e "  ${GREEN}✓${NC} Updated to ${BOLD}${new_ver}${NC}"
 }
 
-cmd_doctor() {
-    local pass=0
-    local fail=0
+# doctor counters live at script scope so the _doc_* helpers can increment them
+# (bash arithmetic in a function body can't easily mutate caller-locals)
+_doc_pass=0
+_doc_fail=0
+_doc_warn=0
 
-    echo -e "${BOLD}${BLUE}phpvm --doctor${NC}  v${VERSION}"
+_doc_ok()   { echo -e "  ${GREEN}✓${NC} $*"; (( _doc_pass++ )); }
+_doc_bad()  { echo -e "  ${RED}✗${NC} $*"; (( _doc_fail++ )); }
+_doc_warn() { echo -e "  ${YELLOW}!${NC} $*"; (( _doc_warn++ )); }
+_doc_info() { echo -e "    ${DIM}$*${NC}"; }
+_doc_skip() { echo -e "  ${DIM}—${NC}  $*"; }
+_doc_section() {
     echo ""
+    echo -e "${BOLD}${BLUE}▸ $*${NC}"
+}
 
-    # 1. installed binary vs running version
+cmd_doctor() {
+    _doc_pass=0; _doc_fail=0; _doc_warn=0
+
+    echo ""
+    echo -e "${BOLD}${BLUE}phpvm --doctor${NC}  v${VERSION}"
+    echo -e "${DIM}  user=${USER}  shell=$(basename "${SHELL:-?}")  pwd=${PWD}${NC}"
+
+    # cli install
+    _doc_section "CLI install"
+
     local installed_bin
     installed_bin=$(command -v phpvm 2>/dev/null || echo "")
     if [[ -n "$installed_bin" ]]; then
         local installed_ver
         installed_ver=$(grep -E '^VERSION="' "$installed_bin" 2>/dev/null | head -1 | cut -d'"' -f2)
         if [[ "$installed_ver" == "$VERSION" ]]; then
-            echo -e "  ${GREEN}✓${NC} Binary: ${BOLD}${installed_bin}${NC}  v${installed_ver}"
-            (( pass++ ))
+            _doc_ok "Binary: ${BOLD}${installed_bin}${NC}  v${installed_ver}"
         else
-            echo -e "  ${YELLOW}!${NC} Binary ${BOLD}${installed_bin}${NC} is v${installed_ver:-?} but source is v${VERSION}"
-            echo -e "    ${DIM}Fix: sudo bash install.sh --upgrade${NC}"
-            (( fail++ ))
+            _doc_warn "Binary ${BOLD}${installed_bin}${NC} v${installed_ver:-?} but source v${VERSION}"
+            _doc_info "Fix: sudo bash install.sh --upgrade"
         fi
     else
-        echo -e "  ${RED}✗${NC} phpvm not found in PATH"
-        (( fail++ ))
+        _doc_bad "phpvm not found in PATH"
     fi
 
-    # 2. sudoers rule
-    echo ""
+    # path shadow — multiple phpvm binaries
+    # `command -v -a` lists every match in PATH; awk dedupes symlink chains pointing to the same file
+    local all_phpvm
+    all_phpvm=$(command -v -a phpvm 2>/dev/null | awk '!seen[$0]++')
+    local count
+    count=$(echo "$all_phpvm" | grep -c .)
+    if (( count > 1 )); then
+        _doc_warn "Multiple phpvm in PATH — first wins:"
+        while IFS= read -r p; do
+            [[ -n "$p" ]] && _doc_info "$p"
+        done <<< "$all_phpvm"
+        _doc_info "Remove stale copies or fix PATH order."
+    fi
+
+    # bin_dir writable
+    local bin_dir
+    bin_dir="$(dirname "$installed_bin")"
+    if [[ -n "$installed_bin" ]]; then
+        if [[ -w "$bin_dir" ]]; then
+            _doc_ok "BIN_DIR ${BOLD}${bin_dir}${NC} writable by ${USER}"
+        else
+            _doc_warn "BIN_DIR ${BOLD}${bin_dir}${NC} not writable — self-update needs sudo"
+        fi
+    fi
+
+    # bash version
+    if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
+        _doc_bad "bash ${BASH_VERSION} — need 4.3+"
+    else
+        _doc_ok "bash ${BASH_VERSION}"
+    fi
+
+    # php runtimes
+    _doc_section "PHP runtimes"
+
+    if ! command -v update-alternatives &>/dev/null; then
+        _doc_bad "update-alternatives missing — Debian/Ubuntu only"
+        _doc_info "Fix: sudo apt install dpkg"
+    else
+        _doc_ok "update-alternatives: $(command -v update-alternatives)"
+
+        local versions
+        versions=$(get_php_versions)
+        local vcount
+        vcount=$(echo "$versions" | grep -c .)
+        if (( vcount == 0 )); then
+            _doc_bad "No PHP versions registered in update-alternatives"
+            _doc_info "Fix: sudo apt install php8.2 php8.2-cli  (or any phpX.Y)"
+        else
+            _doc_ok "${vcount} PHP runtime(s) registered"
+            while IFS= read -r v; do
+                [[ -z "$v" ]] && continue
+                local label
+                label=$(basename "$v")
+                if [[ -x "$v" ]]; then
+                    local ver
+                    ver=$("$v" -r 'echo PHP_VERSION;' 2>/dev/null || echo "?")
+                    _doc_info "${label} → ${ver}"
+                else
+                    _doc_info "${label} → ${RED}missing binary${NC}"
+                fi
+            done <<< "$versions"
+        fi
+
+        local current_alt
+        current_alt=$(readlink /etc/alternatives/php 2>/dev/null || echo "")
+        if [[ -n "$current_alt" ]]; then
+            _doc_ok "Active: ${BOLD}$(basename "$current_alt")${NC}  (${current_alt})"
+        else
+            _doc_warn "No active /etc/alternatives/php symlink"
+        fi
+    fi
+
+    # composer
+    if command -v composer &>/dev/null; then
+        local comp_ver
+        comp_ver=$(composer --version 2>/dev/null | head -1)
+        _doc_ok "composer: ${comp_ver}"
+    else
+        _doc_warn "composer not installed — composer.json detection works but install is up to you"
+        _doc_info "Install: https://getcomposer.org/download/"
+    fi
+
+    # php-fpm
+    _doc_section "PHP-FPM"
+
+    if command -v systemctl &>/dev/null; then
+        local fpm_units
+        fpm_units=$(systemctl list-unit-files 'php*-fpm.service' --no-legend --no-pager 2>/dev/null | awk '{print $1}')
+        if [[ -z "$fpm_units" ]]; then
+            _doc_skip "No php*-fpm.service units (FPM not installed)"
+        else
+            while IFS= read -r unit; do
+                [[ -z "$unit" ]] && continue
+                local active
+                active=$(systemctl is-active "$unit" 2>/dev/null || echo "?")
+                local enabled
+                enabled=$(systemctl is-enabled "$unit" 2>/dev/null || echo "?")
+                if [[ "$active" == "active" ]]; then
+                    _doc_ok "${unit}  active=${GREEN}${active}${NC}  enabled=${enabled}"
+                else
+                    _doc_info "${unit}  active=${active}  enabled=${enabled}"
+                fi
+            done <<< "$fpm_units"
+        fi
+    else
+        _doc_skip "systemctl not available — skipping FPM check"
+    fi
+
+    # sudo
+    _doc_section "Sudo (auto-switch)"
+
     local sudoers="/etc/sudoers.d/phpvm"
     if [[ -f "$sudoers" ]]; then
         local rule
         rule=$(cat "$sudoers" 2>/dev/null)
-        echo -e "  ${GREEN}✓${NC} Sudoers: ${BOLD}${sudoers}${NC}"
-        echo -e "    ${DIM}${rule}${NC}"
+        _doc_ok "Sudoers: ${BOLD}${sudoers}${NC}"
+        _doc_info "${rule}"
         if [[ "$rule" == *"php*"* ]]; then
-            echo -e "    ${YELLOW}!${NC} Rule uses old glob ${BOLD}php*${NC} — re-run install.sh to tighten it"
-            (( fail++ ))
-        else
-            (( pass++ ))
+            _doc_warn "Rule uses old glob ${BOLD}php*${NC} — re-run install.sh to tighten"
         fi
     else
-        echo -e "  ${YELLOW}!${NC} No sudoers rule at ${BOLD}${sudoers}${NC}"
-        echo -e "    ${DIM}Auto-switch will prompt for password or silently fail.${NC}"
-        echo -e "    ${DIM}Fix: sudo bash install.sh (answer Y to sudoers prompt)${NC}"
-        (( fail++ ))
+        _doc_warn "No sudoers rule at ${BOLD}${sudoers}${NC}"
+        _doc_info "Auto-switch will prompt for password or silently fail."
+        _doc_info "Fix: sudo bash install.sh (answer Y to sudoers prompt)"
     fi
 
-    # 3. test sudo -n live
-    echo ""
-    local current_alt
     current_alt=$(readlink /etc/alternatives/php 2>/dev/null || echo "")
     if [[ -n "$current_alt" ]]; then
-        local test_out
+        local test_out test_rc
+        # set to the already-active alt: no-op switch, but exercises the exact sudoers rule
         test_out=$(sudo -n update-alternatives --set php "$current_alt" 2>&1)
-        local test_rc=$?
+        test_rc=$?
         if [[ "$test_rc" -eq 0 ]]; then
-            echo -e "  ${GREEN}✓${NC} sudo -n update-alternatives --set php ${BOLD}$(basename "$current_alt")${NC}  → ok"
-            (( pass++ ))
+            _doc_ok "sudo -n update-alternatives --set php ${BOLD}$(basename "$current_alt")${NC}  → ok"
         else
-            echo -e "  ${RED}✗${NC} sudo -n update-alternatives failed  (rc=${test_rc})"
-            [[ -n "$test_out" ]] && echo -e "    ${DIM}${test_out}${NC}"
-            echo -e "    ${DIM}Auto-switch will silently no-op without passwordless sudo.${NC}"
-            (( fail++ ))
+            _doc_bad "sudo -n update-alternatives failed (rc=${test_rc})"
+            [[ -n "$test_out" ]] && _doc_info "${test_out}"
+            _doc_info "Auto-switch will silently no-op without passwordless sudo."
         fi
     else
-        echo -e "  ${YELLOW}!${NC} No active PHP alternative — cannot test sudo -n"
-        (( fail++ ))
+        _doc_warn "No active PHP alternative — cannot test sudo -n"
     fi
 
-    # 4. hook sourced in shell rc
-    echo ""
-    local shell_name
-    shell_name=$(basename "${SHELL:-bash}")
-    local rc
-    rc=$(shell_rc_path "$shell_name")
+    # shell hook
+    _doc_section "Shell hook (auto-switch on cd)"
+
     local hook_dir
     hook_dir=$(detect_hook_dir 2>/dev/null || echo "")
+    if [[ -z "$hook_dir" ]]; then
+        _doc_bad "Hook dir not found (looked in /etc/phpvm and ~/.phpvm)"
+        _doc_info "Fix: re-run install.sh"
+    else
+        _doc_ok "Hook dir: ${BOLD}${hook_dir}${NC}"
+        local missing=0
+        for h in php-auto.bash php-auto.zsh php-auto.fish; do
+            if [[ -f "${hook_dir}/${h}" ]]; then
+                _doc_info "✓ ${h}"
+            else
+                _doc_info "✗ ${h} ${RED}missing${NC}"
+                (( missing++ ))
+            fi
+        done
+        (( missing > 0 )) && _doc_warn "${missing} hook file(s) missing — re-run install.sh"
+    fi
+
+    local shell_name rc
+    shell_name=$(basename "${SHELL:-bash}")
+    rc=$(shell_rc_path "$shell_name")
     if [[ -n "$hook_dir" && -n "$rc" ]]; then
         local hook_file="${hook_dir}/php-auto.${shell_name}"
         if grep -qF "source ${hook_file}" "$rc" 2>/dev/null; then
-            echo -e "  ${GREEN}✓${NC} Hook sourced in ${BOLD}${rc}${NC}"
-            (( pass++ ))
+            _doc_ok "Hook sourced in ${BOLD}${rc}${NC}"
         else
-            echo -e "  ${YELLOW}!${NC} Hook NOT found in ${BOLD}${rc}${NC}"
-            echo -e "    ${DIM}Fix: phpvm --enable-hook${NC}"
-            (( fail++ ))
+            _doc_warn "Hook NOT in ${BOLD}${rc}${NC}"
+            _doc_info "Fix: phpvm --enable-hook"
         fi
     else
-        echo -e "  ${YELLOW}!${NC} Cannot locate hook dir or shell rc (shell=${shell_name})"
-        (( fail++ ))
+        _doc_warn "Cannot locate shell rc (shell=${shell_name})"
     fi
 
-    # 5. project PHP for cwd
-    echo ""
+    # gui (optional)
+    _doc_section "GUI / tray (optional)"
+
+    local gui_bin
+    gui_bin=$(command -v phpvm-gui 2>/dev/null || echo "")
+    if [[ -z "$gui_bin" ]]; then
+        _doc_skip "phpvm-gui not installed (CLI-only install)"
+    else
+        _doc_ok "GUI binary: ${BOLD}${gui_bin}${NC}"
+
+        if ! command -v python3 &>/dev/null; then
+            _doc_bad "python3 missing — GUI will not start"
+            _doc_info "Fix: sudo apt install python3"
+        else
+            local py_ver
+            py_ver=$(python3 --version 2>&1)
+            _doc_ok "${py_ver}"
+
+            if python3 -c "import gi" &>/dev/null; then
+                _doc_ok "python3-gi present"
+            else
+                _doc_bad "python3-gi missing"
+                _doc_info "Fix: sudo apt install python3-gi gir1.2-gtk-3.0"
+            fi
+
+            if python3 -c "import gi; gi.require_version('Gtk','3.0'); from gi.repository import Gtk" &>/dev/null; then
+                _doc_ok "GTK 3 typelib available"
+            else
+                _doc_bad "GTK 3 typelib missing"
+                _doc_info "Fix: sudo apt install gir1.2-gtk-3.0"
+            fi
+
+            # ubuntu 20.04+ ships Ayatana fork; older distros still have the legacy AppIndicator3 — accept either
+            if python3 -c "import gi; gi.require_version('AyatanaAppIndicator3','0.1'); from gi.repository import AyatanaAppIndicator3" &>/dev/null; then
+                _doc_ok "Ayatana AppIndicator3 available (tray will work)"
+            elif python3 -c "import gi; gi.require_version('AppIndicator3','0.1'); from gi.repository import AppIndicator3" &>/dev/null; then
+                _doc_ok "AppIndicator3 available (legacy, tray will work)"
+            else
+                _doc_warn "No AppIndicator typelib — tray icon will not appear"
+                _doc_info "Fix: sudo apt install gir1.2-ayatana-appindicator3-0.1"
+            fi
+        fi
+
+        # icon
+        local icon_found=""
+        for p in /usr/share/icons/hicolor/scalable/apps/phpvm.svg \
+                 "$HOME/.local/share/icons/hicolor/scalable/apps/phpvm.svg" \
+                 /usr/local/share/icons/hicolor/scalable/apps/phpvm.svg; do
+            [[ -f "$p" ]] && icon_found="$p" && break
+        done
+        if [[ -n "$icon_found" ]]; then
+            _doc_ok "Icon: ${icon_found}"
+        else
+            _doc_warn "phpvm.svg icon not installed — GUI uses fallback"
+            _doc_info "Fix: re-run install.sh"
+        fi
+
+        # desktop entry
+        local desk_found=""
+        for d in /usr/share/applications/phpvm-gui.desktop \
+                 "$HOME/.local/share/applications/phpvm-gui.desktop"; do
+            [[ -f "$d" ]] && desk_found="$d" && break
+        done
+        if [[ -n "$desk_found" ]]; then
+            _doc_ok "Desktop entry: ${desk_found}"
+        else
+            _doc_warn "No .desktop entry — app menu launch unavailable"
+        fi
+
+        # autostart
+        local autostart="$HOME/.config/autostart/phpvm-gui.desktop"
+        if [[ -f "$autostart" ]]; then
+            _doc_ok "Autostart enabled: ${autostart}"
+        else
+            _doc_skip "Autostart not configured (tray won't launch on login)"
+            _doc_info "Enable: re-run install.sh and answer Y to autostart prompt"
+        fi
+
+        # running?
+        if pgrep -x phpvm-gui &>/dev/null; then
+            _doc_ok "phpvm-gui process running (pid: $(pgrep -x phpvm-gui | tr '\n' ' '))"
+        else
+            _doc_skip "phpvm-gui not currently running"
+        fi
+    fi
+
+    # project
+    _doc_section "Project (cwd)"
+
     local proj_ver
     proj_ver=$(detect_project_php 2>/dev/null || echo "")
     if [[ -n "$proj_ver" ]]; then
-        echo -e "  ${GREEN}✓${NC} Project PHP (${DIM}${PWD}${NC}): ${CYAN}${proj_ver}${NC}"
-        (( pass++ ))
+        _doc_ok "Project PHP: ${CYAN}${proj_ver}${NC}"
+        local pv_file
+        pv_file=$(find_php_version_file 2>/dev/null || echo "")
+        local cj_file
+        cj_file=$(find_composer_json 2>/dev/null || echo "")
+        [[ -n "$pv_file" ]] && _doc_info ".php-version → ${pv_file}"
+        [[ -n "$cj_file" ]] && _doc_info "composer.json → ${cj_file}"
+
+        # is requested version installed?
+        local norm
+        norm=$(normalize_version "$proj_ver" 2>/dev/null || echo "")
+        if [[ -n "$norm" ]] && find_version_by_query "$proj_ver" &>/dev/null; then
+            _doc_ok "Requested version ${proj_ver} → installed"
+        else
+            _doc_warn "Requested version ${proj_ver} not installed"
+            _doc_info "Fix: sudo apt install php${proj_ver}"
+        fi
     else
-        echo -e "  ${DIM}—${NC}  No .php-version / composer.json in ${BOLD}${PWD}${NC}"
+        _doc_skip "No .php-version / composer.json found in ${PWD} or parents"
     fi
 
+    # summary
     echo ""
     echo -e "  ${DIM}────────────────────────────────────────${NC}"
-    if (( fail > 0 )); then
-        echo -e "  ${BOLD}${pass} passed  ${RED}${fail} issue(s)${NC}"
+    local total=$(( _doc_pass + _doc_warn + _doc_fail ))
+    if (( _doc_fail > 0 )); then
+        echo -e "  ${BOLD}${_doc_pass} ok${NC} / ${YELLOW}${_doc_warn} warn${NC} / ${RED}${_doc_fail} fail${NC}  (of ${total})"
+    elif (( _doc_warn > 0 )); then
+        echo -e "  ${BOLD}${_doc_pass} ok${NC} / ${YELLOW}${_doc_warn} warn${NC}  (of ${total})"
     else
-        echo -e "  ${BOLD}${GREEN}All checks passed${NC}"
+        echo -e "  ${BOLD}${GREEN}All ${total} checks passed${NC}"
     fi
     echo ""
-    (( fail > 0 )) && return 1
+    (( _doc_fail > 0 )) && return 1
     return 0
 }
 
@@ -697,7 +933,7 @@ cmd_help() {
     echo -e "  phpvm --disable-hook [shell] Remove auto-switch hook from shell rc"
     echo -e "  phpvm --window               Open detached GTK picker window (needs phpvm-gui)"
     echo -e "  phpvm --self-update [URL] [REF]  Pull latest from git and re-run installer"
-    echo -e "  phpvm --doctor               Diagnose installation, sudo, and hook setup"
+    echo -e "  phpvm --doctor               Full diagnostic: CLI, PHP runtimes, FPM, sudo, hooks, GUI"
     echo -e "  phpvm --version              Show tool version"
     echo -e "  phpvm --help                 This help"
     echo ""

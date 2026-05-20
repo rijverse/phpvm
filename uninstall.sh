@@ -16,9 +16,9 @@ warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
 info()    { echo -e "  ${BLUE}→${NC} $*"; }
 
 echo ""
-echo -e "${BOLD}${BLUE}┌─────────────────────────────────────────┐${NC}"
+echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
 echo -e "${BOLD}${BLUE}│            phpvm Uninstaller            │${NC}"
-echo -e "${BOLD}${BLUE}└─────────────────────────────────────────┘${NC}"
+echo -e "${BOLD}${BLUE}╰─────────────────────────────────────────╯${NC}"
 echo ""
 
 # remove from both system and user locations if present.
@@ -29,13 +29,30 @@ DESKTOPS=(
     "/usr/share/applications/phpvm-gui.desktop"
     "$HOME/.local/share/applications/phpvm-gui.desktop"
 )
+AUTOSTARTS=(
+    "$HOME/.config/autostart/phpvm-gui.desktop"
+)
+ICONS=(
+    "/usr/share/icons/hicolor/scalable/apps/phpvm.svg"
+    "/usr/local/share/icons/hicolor/scalable/apps/phpvm.svg"
+    "$HOME/.local/share/icons/hicolor/scalable/apps/phpvm.svg"
+)
+# honor sudo invocation — also clean caller's home if running as root
+if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
+    SUDO_HOME=$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)
+    if [[ -n "$SUDO_HOME" && "$SUDO_HOME" != "$HOME" ]]; then
+        AUTOSTARTS+=("${SUDO_HOME}/.config/autostart/phpvm-gui.desktop")
+        DESKTOPS+=("${SUDO_HOME}/.local/share/applications/phpvm-gui.desktop")
+        ICONS+=("${SUDO_HOME}/.local/share/icons/hicolor/scalable/apps/phpvm.svg")
+    fi
+fi
 
-# Quit running phpvm-gui
+# quit running phpvm-gui
 if pgrep -x phpvm-gui &>/dev/null; then
     pkill -x phpvm-gui 2>/dev/null && success "Stopped phpvm-gui" || warn "Could not stop phpvm-gui"
 fi
 
-# Remove binaries
+# remove binaries
 for dir in "${BIN_DIRS[@]}"; do
     for bin in phpvm phpvm-gui; do
         f="${dir}/${bin}"
@@ -62,7 +79,7 @@ for d in "${HOOK_DIRS[@]}"; do
     fi
 done
 
-# Remove sudoers
+# remove sudoers
 if [[ -f "$SUDOERS" ]]; then
     if [[ $EUID -eq 0 ]]; then
         rm -f "$SUDOERS"
@@ -82,6 +99,36 @@ for desktop in "${DESKTOPS[@]}"; do
     fi
     success "Removed ${desktop}"
 done
+
+# remove autostart entries
+for a in "${AUTOSTARTS[@]}"; do
+    [[ -f "$a" ]] || continue
+    if [[ -w "$a" || $EUID -eq 0 ]]; then
+        rm -f "$a"
+    else
+        sudo rm -f "$a"
+    fi
+    success "Removed ${a}"
+done
+
+# remove icons + refresh cache
+ICON_DIRS_TO_REFRESH=()
+for ic in "${ICONS[@]}"; do
+    [[ -f "$ic" ]] || continue
+    if [[ -w "$ic" || $EUID -eq 0 ]]; then
+        rm -f "$ic"
+    else
+        sudo rm -f "$ic"
+    fi
+    success "Removed ${ic}"
+    # icon path is .../hicolor/scalable/apps/phpvm.svg — strip 3 levels to get the hicolor theme root for gtk-update-icon-cache
+    ICON_DIRS_TO_REFRESH+=("$(dirname "$(dirname "$(dirname "$ic")")")")
+done
+if command -v gtk-update-icon-cache &>/dev/null; then
+    for d in "${ICON_DIRS_TO_REFRESH[@]}"; do
+        gtk-update-icon-cache -f -t "$d" 2>/dev/null || true
+    done
+fi
 
 # remove shell hook lines (only our exact lines, never a blanket /phpvm/ wipe)
 clean_rc() {

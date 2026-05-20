@@ -28,7 +28,7 @@ done
 
 echo ""
 echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
-echo -e "${BOLD}${BLUE}│${NC}  ${BOLD}phpvm Installer${NC}                        ${BOLD}${BLUE}│${NC}"
+echo -e "${BOLD}${BLUE}│${NC}             ${BOLD}phpvm Installer${NC}             ${BOLD}${BLUE}│${NC}"
 echo -e "${BOLD}${BLUE}╰─────────────────────────────────────────╯${NC}"
 echo ""
 
@@ -151,6 +151,65 @@ Categories=Development;
 StartupNotify=false
 EOF
         success "Desktop entry created"
+
+        # autostart on login (user-scope only — xdg autostart is per-user)
+        # under sudo, $HOME points at /root; resolve the real invoking user's home via passwd
+        if [[ $EUID -eq 0 ]]; then
+            USER_HOME=$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f6)
+        else
+            USER_HOME="$HOME"
+        fi
+        AUTOSTART_DIR="${USER_HOME}/.config/autostart"
+        AUTOSTART_FILE="${AUTOSTART_DIR}/phpvm-gui.desktop"
+
+        if (( UPGRADE )); then
+            if [[ -f "$AUTOSTART_FILE" ]]; then
+                ans_auto="y"
+                info "Refreshing existing autostart entry"
+            else
+                ans_auto="n"
+            fi
+        elif [[ ! -t 0 ]]; then
+            ans_auto="n"
+            info "Non-interactive — skipping autostart prompt"
+        else
+            echo ""
+            echo -e "  ${BOLD}Launch phpvm-gui automatically on login?${NC}"
+            echo -e "  ${DIM}Creates ${AUTOSTART_FILE}${NC}"
+            read -rp "  Enable autostart? [y/N] " ans_auto
+        fi
+
+        if [[ "$ans_auto" =~ ^[Yy]$ ]]; then
+            if [[ $EUID -eq 0 ]]; then
+                # drop to the target user so the file lands with correct ownership/perms
+                sudo -u "$CURRENT_USER" mkdir -p "$AUTOSTART_DIR"
+                sudo -u "$CURRENT_USER" tee "$AUTOSTART_FILE" >/dev/null <<EOF
+[Desktop Entry]
+Type=Application
+Name=phpvm
+Comment=Switch PHP versions from system tray
+Exec=${BIN_DIR}/phpvm-gui
+Icon=phpvm
+Categories=Development;
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+EOF
+            else
+                mkdir -p "$AUTOSTART_DIR"
+                cat > "$AUTOSTART_FILE" <<EOF
+[Desktop Entry]
+Type=Application
+Name=phpvm
+Comment=Switch PHP versions from system tray
+Exec=${BIN_DIR}/phpvm-gui
+Icon=phpvm
+Categories=Development;
+X-GNOME-Autostart-enabled=true
+StartupNotify=false
+EOF
+            fi
+            success "Autostart enabled → ${CYAN}${AUTOSTART_FILE}${NC}"
+        fi
     fi
 fi
 
@@ -274,7 +333,7 @@ PHPVM_VERSION_INSTALLED=$(grep -E '^VERSION="' "$SCRIPT_DIR/phpvm.sh" | head -1 
 REPO_URL=""
 if command -v git &>/dev/null && [[ -d "$SCRIPT_DIR/.git" ]]; then
     REPO_URL=$(git -C "$SCRIPT_DIR" config --get remote.origin.url 2>/dev/null || echo "")
-    # Convert git@host:owner/repo[.git] → https://host/owner/repo so --self-update works without ssh keys
+    # convert git@host:owner/repo[.git] → https://host/owner/repo so --self-update works without ssh keys
     if [[ "$REPO_URL" =~ ^git@([^:]+):(.+)$ ]]; then
         REPO_URL="https://${BASH_REMATCH[1]}/${BASH_REMATCH[2]}"
     fi
