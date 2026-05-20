@@ -50,7 +50,7 @@ The installer is interactive when stdin is a tty: pick CLI, GUI, or both, then s
 Pin a specific tag or branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.0 bash
+curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.1 bash
 ```
 
 To remove it: `sudo bash uninstall.sh`. Your shell rc is backed up first.

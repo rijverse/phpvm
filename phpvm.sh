@@ -1,12 +1,12 @@
 #!/bin/bash
-# phpvm - PHP Version Manager v2.3.0
+# phpvm - PHP Version Manager v2.3.1
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
     echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
     exit 1
 fi
 
-VERSION="2.3.0"
+VERSION="2.3.1"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
