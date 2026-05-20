@@ -2,6 +2,33 @@
 
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning is [SemVer](https://semver.org/).
 
+## [2.3.0] - 2026-05-20
+
+### Added
+- One-line remote installer — `install.sh` now self-bootstraps. When invoked without sibling repo files (e.g. `curl -fsSL …/install.sh | sudo bash`), it git-clones the repo into a `mktemp -d`, retargets `SCRIPT_DIR` at the clone, and continues in the same process so the EXIT trap removes the tmp dir on exit (no `exec`, no orphaned clone). `PHPVM_REMOTE` and `PHPVM_REF` env vars override the default repo URL and ref (`main`); falls back to a default-branch clone + `git fetch origin <ref> && checkout FETCH_HEAD` when `--branch <ref>` doesn't match a branch (so tags/SHAs work). Hard-fails with a clear message when `git` is missing.
+- `phpvm --doctor` — full diagnostic that checks CLI install, PHP runtimes, composer, PHP-FPM units, sudoers rule, shell hook wiring, GUI/tray deps (python3-gi / GTK 3 / Ayatana or legacy AppIndicator3 / icon / `.desktop` entry / autostart / running process), and project detection. Counts pass / warn / fail and exits non-zero on any fail.
+- `install.sh` now offers to enable autostart on login. Writes `~/.config/autostart/phpvm-gui.desktop` and, under sudo, drops it into the invoking user's `$HOME` (resolved via `getent passwd`) with correct ownership. Upgrade mode refreshes the file in place if it already exists.
+- CI compatibility matrix (`.github/workflows/compat.yml`) — CLI and GUI jobs build on `ubuntu:20.04 / 22.04 / 24.04` containers. Runs shellcheck (`-S warning`), CLI smoke tests, and a GUI import + xvfb `--help` smoke test on every push and PR touching `phpvm.sh`, `phpvm-gui.py`, `install.sh`, `uninstall.sh`, `shell/**`, or `tests/**`.
+- `tests/test_cli.sh`, `tests/test_gui.sh`, `tests/local-compat.sh` — smoke tests for CLI flags, GUI imports, and a Docker-driven local matrix runner.
+
+### Changed
+- README overhaul: centered logo + GUI screenshots (`assets/gui-window.png`, `assets/gui-tray-menu.png`, `assets/tui.png`), expanded `--doctor` row in the CLI table, new `--auto --print [dir]` row, "Things it won't do" limitations section, and explicit `Bash 4.3+` requirement (badge + "What you need").
+- Installer + GUI visual presentation polished — new box-drawing styles, clearer status labels in the GTK window, refactored icon-install feedback. **Restart FPM** button now sits to the left of **Switch** in the row so the destructive-looking action isn't the primary target.
+- `install.sh` autostart heredoc deduplicated into a single `AUTOSTART_CONTENT` template; the root and non-root branches differ only by the write wrapper (`tee` under `sudo -u` vs plain redirect).
+- `shell/php-auto.zsh` and `shell/php-auto.fish` headers now document both `/etc/phpvm/` (system) and `~/.phpvm/` (user) install paths, matching the bash hook.
+- `phpvm-gui.py` docstring clarifies that **Ayatana** AppIndicator3 is preferred and legacy AppIndicator3 is accepted as a fallback.
+- `tests/local-compat.sh` aligned with CI — Ubuntu 18.04 dropped from the local matrix (CI never tested it; README only claims 20/22/24).
+- `CONTRIBUTING.md` — real repo URL, Bash target tightened to `4.3+` (`local -n` is required), matching `phpvm.sh`'s guard.
+
+### Fixed
+- `phpvm.sh` header comment said `v2.1.0` while `VERSION="2.2.0"` — header bumped to v2.2.0.
+- `tests/test_cli.sh` was exercising non-existent subcommands (`list`, `current`, `use`) that the CLI never accepted; tests only passed because unknown commands return non-zero. Rewritten against the real flags (`--list`, `--current`, `--set`), with a regression test that asserts unknown positional `use` is rejected with `Unknown option`.
+- `uninstall.sh` under `sudo` only cleaned the invoking user's autostart, desktop, and icon files — it left `~/.local/bin/phpvm{,-gui}`, the `~/.phpvm` hook directory, and the user's shell rc lines untouched. `SUDO_HOME` now propagates to `BIN_DIRS`, `HOOK_DIRS`, and the rc-cleanup loop.
+- `set_project_tui` wrote `.php-version` without normalizing the version string or warning when an existing file held a different value — diverged from `cmd_set_project`. TUI now normalizes via `normalize_version` and prints an overwrite warning before the confirm prompt.
+- README CLI table missed `phpvm --auto --print [dir]` and undersold `--doctor` ("install location, sudoers rule, and shell-hook setup") versus its actual scope.
+
+---
+
 ## [2.2.0] - 2026-05-11
 
 ### Added

@@ -12,12 +12,40 @@ BOLD='\033[1m'
 DIM='\033[2m'
 NC='\033[0m'
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || pwd)"
 
 info()    { echo -e "  ${BLUE}→${NC} $*"; }
 success() { echo -e "  ${GREEN}✓${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
 err()     { echo -e "  ${RED}✗${NC} $*" >&2; }
+
+# bootstrap — when piped (curl | bash) or copied alone, this script has no
+# sibling repo files. Clone the repo to a tmp dir, retarget SCRIPT_DIR, and
+# continue in the same process so the EXIT trap below removes the clone.
+if [[ ! -f "$SCRIPT_DIR/phpvm.sh" || ! -f "$SCRIPT_DIR/phpvm-gui.py" || ! -d "$SCRIPT_DIR/shell" ]]; then
+    if ! command -v git &>/dev/null; then
+        err "git required for remote install."
+        echo -e "  ${DIM}Install git, or clone the repo and run ./install.sh from inside it.${NC}" >&2
+        exit 1
+    fi
+    PHPVM_REMOTE="${PHPVM_REMOTE:-https://github.com/rijoanul-shanto/phpvm.git}"
+    PHPVM_REF="${PHPVM_REF:-main}"
+    PHPVM_BOOTSTRAP_TMP=$(mktemp -d)
+    trap 'rm -rf "$PHPVM_BOOTSTRAP_TMP"' EXIT
+    info "Bootstrapping from ${CYAN}${PHPVM_REMOTE}${NC} @ ${BOLD}${PHPVM_REF}${NC}"
+    if ! git clone --depth 1 --branch "$PHPVM_REF" "$PHPVM_REMOTE" "$PHPVM_BOOTSTRAP_TMP" >/dev/null 2>&1; then
+        # branch may be a tag/sha rather than a branch — fall back to default clone + checkout
+        if ! git clone --depth 1 "$PHPVM_REMOTE" "$PHPVM_BOOTSTRAP_TMP" >/dev/null 2>&1; then
+            err "Clone failed: ${PHPVM_REMOTE}"
+            exit 1
+        fi
+        if [[ "$PHPVM_REF" != "main" && "$PHPVM_REF" != "master" ]]; then
+            (cd "$PHPVM_BOOTSTRAP_TMP" && git fetch origin "$PHPVM_REF" --depth 1 && git checkout FETCH_HEAD) >/dev/null 2>&1 \
+                || { err "Checkout of ${PHPVM_REF} failed."; exit 1; }
+        fi
+    fi
+    SCRIPT_DIR="$PHPVM_BOOTSTRAP_TMP"
+fi
 
 UPGRADE=0
 for arg in "$@"; do

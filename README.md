@@ -32,12 +32,26 @@ Under the hood it's just `update-alternatives --set php`. Nothing exotic. The wh
 
 ## Installing
 
+One-liner (no local clone needed — the installer bootstraps itself by fetching the repo into a temp dir, then cleans up):
+
 ```bash
-git clone https://github.com/Rijoanul-Shanto/phpvm.git
+curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo bash
+```
+
+Or clone and run it interactively:
+
+```bash
+git clone https://github.com/rijoanul-shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
-The installer is interactive, pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Nothing happens behind your back.
+The installer is interactive when stdin is a tty: pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Under `curl … | sudo bash` it falls back to non-interactive defaults (CLI + GUI, no sudoers, no shell hook) — finish up with `phpvm --enable-hook` and re-run with stdin attached if you want the sudoers prompt.
+
+Pin a specific tag or branch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.0 bash
+```
 
 To remove it: `sudo bash uninstall.sh`. Your shell rc is backed up first.
 
@@ -52,8 +66,8 @@ That pulls the latest from the repo URL captured at install time and re-runs the
 If you installed from a tarball (no recorded URL), you can pass one explicitly, optionally with a tag or branch:
 
 ```bash
-phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git
-phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
+phpvm --self-update https://github.com/rijoanul-shanto/phpvm.git
+phpvm --self-update https://github.com/rijoanul-shanto/phpvm.git v2.2.0
 ```
 
 ### What you need
