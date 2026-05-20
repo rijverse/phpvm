@@ -3,6 +3,25 @@
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 is [SemVer](https://semver.org/).
 
+## [2.3.2] - 2026-05-20
+
+### Fixed
+
+- `install.sh` prompts were silently skipped under `curl … | sudo bash` because piping replaces stdin with the pipe,
+  making `[[ -t 0 ]]` return false even when a real terminal is attached. All interactivity checks now use
+  `{ true < /dev/tty; } 2>/dev/null` to detect a controlling terminal instead of testing stdin, and all `read` calls
+  redirect from `/dev/tty` directly. The one-line installer is now fully interactive — same prompts as running
+  `bash install.sh` locally. Truly headless environments (CI, `nohup`, no controlling tty) still fall back to defaults.
+
+### Changed
+
+- README: corrected the installer interactivity note to reflect `/dev/tty`-based detection.
+- README: added `## Uninstalling` section — remote one-liner (`curl … | sudo bash`), local clone form, itemized list of
+  what gets removed (binaries, hook dir, sudoers rule, desktop/autostart entries, icons, shell RC lines), RC backup
+  behaviour, and the sudo-user note.
+
+---
+
 ## [2.3.1] - 2026-05-20
 
 ### Added

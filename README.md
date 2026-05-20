@@ -50,10 +50,10 @@ The installer is interactive even under `curl … | sudo bash` — it reads prom
 Pin a specific tag or branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.1 bash
+curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.2 bash
 ```
 
-To remove it: `sudo bash uninstall.sh`. Your shell rc is backed up first.
+To remove it — see [Uninstalling](#uninstalling) below.
 
 ### Upgrading
 
@@ -210,6 +210,31 @@ phpvm/
 ```
 
 </details>
+
+## Uninstalling
+
+One-liner (no local clone needed):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/uninstall.sh | sudo bash
+```
+
+Or from a local clone:
+
+```bash
+sudo bash uninstall.sh
+```
+
+What it removes:
+
+- `phpvm` and `phpvm-gui` binaries from both `/usr/local/bin` and `~/.local/bin`
+- Hook directory (`/etc/phpvm` or `~/.phpvm`)
+- Sudoers rule (`/etc/sudoers.d/phpvm`)
+- Desktop entry and autostart file
+- Icon from the hicolor theme (and refreshes the icon cache)
+- The `source …/php-auto.*` lines from `~/.bashrc`, `~/.zshrc`, and `~/.config/fish/config.fish`
+
+Shell RCs are backed up as `<file>.phpvm-backup` before any edits. Running under `sudo` also cleans the invoking user's home, not just root's.
 
 ## Things it won't do
 
