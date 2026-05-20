@@ -45,7 +45,7 @@ git clone https://github.com/rijoanul-shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
-The installer is interactive when stdin is a tty: pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Under `curl … | sudo bash` it falls back to non-interactive defaults (CLI + GUI, no sudoers, no shell hook) — finish up with `phpvm --enable-hook` and re-run with stdin attached if you want the sudoers prompt.
+The installer is interactive even under `curl … | sudo bash` — it reads prompts directly from `/dev/tty` so the pipe doesn't swallow them. Pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Falls back to non-interactive defaults only when there is genuinely no controlling terminal (headless CI, `nohup`, etc.).
 
 Pin a specific tag or branch:
 

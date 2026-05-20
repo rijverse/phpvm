@@ -14,6 +14,14 @@ NC='\033[0m'
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd || pwd)"
 
+# curl|bash pipes stdin, so -t 0 fails even with a real terminal.
+# Try opening /dev/tty (the controlling terminal) directly.
+if [[ -t 0 ]] || { true < /dev/tty; } 2>/dev/null; then
+    INTERACTIVE=1
+else
+    INTERACTIVE=0
+fi
+
 info()    { echo -e "  ${BLUE}→${NC} $*"; }
 success() { echo -e "  ${GREEN}✓${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
@@ -96,7 +104,7 @@ if (( UPGRADE )); then
         INSTALL_GUI=true
     fi
 else
-    if [[ ! -t 0 ]]; then
+    if (( ! INTERACTIVE )); then
         info "Non-interactive — defaulting to both CLI + GUI"
         INSTALL_CLI=true
         INSTALL_GUI=true
@@ -108,7 +116,7 @@ else
         echo -e "    ${CYAN}2)${NC} GUI only        ${DIM}(phpvm-gui system tray applet)${NC}"
         echo -e "    ${CYAN}3)${NC} Both            ${DIM}(CLI + GUI)${NC}"
         echo ""
-        read -rp "  Choice [1/2/3] (default: 3): " choice
+        read -rp "  Choice [1/2/3] (default: 3): " choice < /dev/tty
         choice="${choice:-3}"
 
         case "$choice" in
@@ -197,14 +205,14 @@ EOF
             else
                 ans_auto="n"
             fi
-        elif [[ ! -t 0 ]]; then
+        elif (( ! INTERACTIVE )); then
             ans_auto="n"
             info "Non-interactive — skipping autostart prompt"
         else
             echo ""
             echo -e "  ${BOLD}Launch phpvm-gui automatically on login?${NC}"
             echo -e "  ${DIM}Creates ${AUTOSTART_FILE}${NC}"
-            read -rp "  Enable autostart? [y/N] " ans_auto
+            read -rp "  Enable autostart? [y/N] " ans_auto < /dev/tty
         fi
 
         if [[ "$ans_auto" =~ ^[Yy]$ ]]; then
@@ -256,11 +264,11 @@ if (( UPGRADE )); then
         ans="n"
         [[ -f /etc/sudoers.d/phpvm ]] && info "Sudoers rule already present — keeping it."
     fi
-elif [[ ! -t 0 ]]; then
+elif (( ! INTERACTIVE )); then
     ans="n"
     info "Non-interactive — skipping sudoers prompt."
 else
-    read -rp "  Configure passwordless sudo for update-alternatives? [y/N] " ans
+    read -rp "  Configure passwordless sudo for update-alternatives? [y/N] " ans < /dev/tty
 fi
 if [[ "$ans" =~ ^[Yy]$ ]]; then
     SUDOERS="/etc/sudoers.d/phpvm"
@@ -313,10 +321,10 @@ if [[ -n "$RC" ]]; then
         (( UPGRADE )) || warn "Hook already present in ${RC}"
     elif (( UPGRADE )); then
         info "Skipping shell hook prompt (upgrade mode)"
-    elif [[ ! -t 0 ]]; then
+    elif (( ! INTERACTIVE )); then
         info "Non-interactive — skipping shell hook (run: phpvm --enable-hook)"
     else
-        read -rp "  Add auto-switch hook to ${RC}? [y/N] " ans
+        read -rp "  Add auto-switch hook to ${RC}? [y/N] " ans < /dev/tty
         if [[ "$ans" =~ ^[Yy]$ ]]; then
             {
                 echo ""
