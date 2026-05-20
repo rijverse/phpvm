@@ -15,6 +15,30 @@ on:
     branches: [main]
 
 jobs:
+  lint:
+    name: ShellCheck
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Install shellcheck
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq shellcheck
+
+      - name: Lint shell scripts
+        run: |
+          set -euo pipefail
+          shellcheck -S warning \
+            phpvm.sh \
+            install.sh \
+            uninstall.sh \
+            shell/php-auto.bash \
+            tests/test_cli.sh \
+            tests/test_gui.sh
+
   cli:
     name: CLI / Ubuntu ${{ matrix.ubuntu }}
     runs-on: ubuntu-latest
@@ -26,22 +50,19 @@ jobs:
       image: ubuntu:${{ matrix.ubuntu }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
 
       - name: Install system deps
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          set -euo pipefail
           apt-get update -qq
           apt-get install -y -qq \
             bash \
             dpkg \
-            php-cli \
-            shellcheck
-
-      - name: ShellCheck
-        run: |
-          shellcheck -S warning phpvm.sh install.sh uninstall.sh || true
+            php-cli
 
       - name: Run CLI tests
         run: bash tests/test_cli.sh phpvm.sh
@@ -57,22 +78,34 @@ jobs:
       image: ubuntu:${{ matrix.ubuntu }}
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
 
-      - name: Install system deps
+      - name: Install required deps
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
+          set -euo pipefail
           apt-get update -qq
           apt-get install -y -qq \
             python3 \
             python3-gi \
             gir1.2-gtk-3.0 \
             xvfb \
-            libglib2.0-0 || true
-          apt-get install -y -qq gir1.2-ayatana-appindicator3-0.1 2>/dev/null \
-            || apt-get install -y -qq gir1.2-appindicator3-0.1 2>/dev/null \
-            || echo "Warning: no appindicator package found"
+            libglib2.0-0
+
+      - name: Install AppIndicator (Ayatana or legacy)
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          set -euo pipefail
+          if apt-get install -y -qq gir1.2-ayatana-appindicator3-0.1 2>/dev/null; then
+            echo "Installed ayatana variant"
+          elif apt-get install -y -qq gir1.2-appindicator3-0.1 2>/dev/null; then
+            echo "Installed legacy variant"
+          else
+            echo "::warning::No appindicator package available on this release"
+          fi
 
       - name: Run GUI tests
         run: bash tests/test_gui.sh phpvm-gui.py

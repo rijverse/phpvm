@@ -12,12 +12,26 @@ jobs:
   release:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.2.2
+
+      - name: Verify repo integrity
+        run: |
+          set -euo pipefail
+          missing=0
+          for f in phpvm.sh phpvm-gui.py install.sh uninstall.sh \
+                   shell/php-auto.bash shell/php-auto.zsh shell/php-auto.fish \
+                   assets/phpvm.svg CHANGELOG.md; do
+            if [[ ! -f "$f" ]]; then
+              echo "::error::Missing file: $f"
+              missing=1
+            fi
+          done
+          [[ "$missing" -eq 0 ]]
 
       - name: Verify tag matches VERSION
         run: |
+          set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
           file_ver=$(grep -E '^VERSION="' phpvm.sh | head -1 | cut -d'"' -f2)
           echo "tag=${tag}  phpvm.sh=${file_ver}"
@@ -26,9 +40,18 @@ jobs:
             exit 1
           fi
 
+      - name: Bash syntax check
+        run: |
+          set -euo pipefail
+          bash -n phpvm.sh
+          bash -n install.sh
+          bash -n uninstall.sh
+          bash -n shell/php-auto.bash
+
       - name: Extract changelog section for this tag
         id: notes
         run: |
+          set -euo pipefail
           tag="${GITHUB_REF_NAME#v}"
           # Grab content between "## [<tag>]" and the next "## [" header.
           # Falls back to a generic note if the section is missing.
@@ -46,24 +69,10 @@ jobs:
             echo 'EOF'
           } >> "$GITHUB_OUTPUT"
 
-      - name: Shell lint (best effort)
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq shellcheck
-          shellcheck -S warning phpvm.sh install.sh uninstall.sh || true
-
       - name: Create release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2.2.1
         with:
           name: phpvm ${{ github.ref_name }}
           body: ${{ steps.notes.outputs.body }}
           draft: false
           prerelease: ${{ contains(github.ref_name, '-') }}
-          files: |
-            phpvm.sh
-            phpvm-gui.py
-            install.sh
-            uninstall.sh
-            shell/php-auto.bash
-            shell/php-auto.zsh
-            shell/php-auto.fish
