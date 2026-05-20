@@ -15,7 +15,10 @@ If you've been juggling `update-alternatives --set php` by hand every time you s
 
 </div>
 
-![phpvm TUI](assets/tui.png)
+<div align="center">
+  <img src="assets/gui-window.png" alt="phpvm GUI window" width="720"/>
+  <p><em>One-click switching with SAPI, xdebug, FPM, and EOL badges.</em></p>
+</div>
 
 ## What it does
 
@@ -60,6 +63,9 @@ phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
 - For the GUI: `python3-gi`, GTK3, AppIndicator3. The install command is in the GUI section below.
 
 ## CLI
+Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin as the project version, <kbd>q</kbd> to bail.
+
+<img src="assets/tui.png" alt="phpvm TUI" width="500"/>
 
 | Command | What it does |
 |---|---|
@@ -78,9 +84,11 @@ phpvm --self-update https://github.com/Rijoanul-Shanto/phpvm.git v2.2.0
 | `phpvm --doctor` | Diagnoses install location, sudoers rule, and shell-hook setup |
 | `phpvm --help` | Everything else |
 
-In the TUI: <kbd>↑</kbd> <kbd>↓</kbd> or <kbd>k</kbd> <kbd>j</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin the current selection as the project version, <kbd>q</kbd> to bail.
+Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
 
 ## The GUI
+
+<img src="assets/gui-tray-menu.png" alt="phpvm tray menu" width="500"/>
 
 Two shapes, same binary.
 
@@ -91,10 +99,6 @@ phpvm-gui              # tray applet
 phpvm-gui --window     # detached GTK picker window, no tray
 phpvm --window         # same window, launched from the shell (terminal freed)
 ```
-
-![phpvm GUI window](assets/gui-window.png)
-
-![phpvm tray menu](assets/gui-tray-menu.png)
 
 The window view shows each version with:
 
