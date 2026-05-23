@@ -236,14 +236,27 @@ What it removes:
 
 Shell RCs are backed up as `<file>.phpvm-backup` before any edits. Running under `sudo` also cleans the invoking user's home, not just root's.
 
-## Things it won't do
+## Current limits
 
-- Install PHP for you. You still need `apt install php8.2 php8.2-fpm …` (or Ondřej Surý's PPA). phpvm only switches between what's already on disk.
-- Work on distros without `update-alternatives`. Arch, Fedora, RHEL, openSUSE out of scope. Patches welcome if you want to add a backend.
-- Touch your web server config. Apache/Nginx still point at whatever socket or module you wired up. FPM restart is per-version and only knows `systemctl restart phpX.Y-fpm` style unit names.
-- Pin a specific patch version. Everything is `X.Y`. If you need `8.2.13` exactly, this is the wrong tool.
-- Cross-shell auto-switching inside a single session. Open a new shell after switching to pick up the change inside that shell's `$PATH` resolved binary cache.
-- Pop the polkit dialog without a desktop session. Headless boxes get the regular `sudo` password prompt instead.
+A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some are out of scope for now.
+
+- **Installing PHP itself**: for now you still need `apt install php8.2 php8.2-fpm …` (or Ondřej Surý's PPA). `phpvm install <ver>` is on the roadmap.
+- **Per-shell switching**: switches are currently system-wide via `update-alternatives`, so two shells on two versions at once isn't supported yet. A shim-based `phpvm shell <ver>` is on the roadmap.
+- **Distros without `update-alternatives`**: Arch, Fedora, RHEL, openSUSE aren't supported. Adding a backend is welcome as a contribution.
+- **Web server config**: Apache/Nginx still point at whatever socket or module you wired up. FPM restart is per-version and assumes `systemctl restart phpX.Y-fpm` style unit names.
+- **Patch-level pinning**: everything is `X.Y`. If you need `8.2.13` exactly, you'll want a different tool.
+- **Polkit without a desktop session**: headless boxes fall back to the regular `sudo` password prompt instead.
+
+## Roadmap
+
+Things on the list, roughly in priority order. Open an issue if you want to push one up the stack or claim one.
+
+- **`phpvm install <ver>`**: drive Ondřej Surý's PPA under the hood so you don't have to `apt install` by hand. `phpvm install 8.3`, `phpvm install --lts`, `phpvm install latest`.
+- **Per-shell switching**: `phpvm shell 8.2` that flips PHP for the current terminal only, via a `~/.phpvm/shims/php` shim on `$PATH`. Lets you run two shells on two PHP versions at the same time without touching `update-alternatives`.
+- **Extension manager**: `phpvm ext install xdebug redis imagick` per version, with the matching `php<ver>-<ext>` packages and ini wiring. None of the existing PHP version managers do this well.
+- **`phpvm exec <ver> <cmd>`**: run a one-off in a specific version without switching globally, like `nvm exec`. Handy for CI and quick sanity checks.
+- **Shell completion**: bash/zsh/fish completion for `--set`, `--exec`, etc. so `phpvm --set <TAB>` lists installed versions.
+- **`phpvm install --lts` / `latest` aliases**: track the moving targets without remembering current version numbers.
 
 ## Contributing
 
