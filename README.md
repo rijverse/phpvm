@@ -45,7 +45,7 @@ git clone https://github.com/rijoanul-shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
-The installer is interactive even under `curl … | sudo bash`. It reads prompts directly from `/dev/tty` so the pipe doesn't swallow them. Pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Falls back to non-interactive defaults only when there is genuinely no controlling terminal (headless CI, `nohup`, etc.).
+The installer is interactive even under `curl ... | sudo bash`. It reads prompts directly from `/dev/tty` so the pipe doesn't swallow them. Pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Falls back to non-interactive defaults only when there is genuinely no controlling terminal (headless CI, `nohup`, etc.).
 
 Pin a specific tag or branch:
 
@@ -172,7 +172,7 @@ source /etc/phpvm/php-auto.fish      # or  ~/.phpvm/php-auto.fish
 
 ## About sudo
 
-Every switch ends up running `sudo update-alternatives --set php …` 
+Every switch ends up running `sudo update-alternatives --set php ...`
 
 By default that means a password prompt. The installer offers to drop a sudoers rule so you don't get one:
 
@@ -238,7 +238,7 @@ What it removes:
 - Sudoers rule (`/etc/sudoers.d/phpvm`)
 - Desktop entry and autostart file
 - Icon from the hicolor theme (and refreshes the icon cache)
-- The `source …/php-auto.*` lines from `~/.bashrc`, `~/.zshrc`, and `~/.config/fish/config.fish`
+- The `source .../php-auto.*` lines from `~/.bashrc`, `~/.zshrc`, and `~/.config/fish/config.fish`
 
 Shell RCs are backed up as `<file>.phpvm-backup` before any edits. Running under `sudo` also cleans the invoking user's home, not just root's.
 
@@ -246,7 +246,7 @@ Shell RCs are backed up as `<file>.phpvm-backup` before any edits. Running under
 
 A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some are out of scope for now.
 
-- **Installing PHP itself**: for now you still need `apt install php8.2 php8.2-fpm …` (or Ondřej Surý's PPA). `phpvm install <ver>` is on the roadmap.
+- **Installing PHP itself**: for now you still need `apt install php8.2 php8.2-fpm ...` (or Ondřej Surý's PPA). `phpvm install <ver>` is on the roadmap.
 - **Per-shell switching**: switches are currently system-wide via `update-alternatives`, so two shells on two versions at once isn't supported yet. A shim-based `phpvm shell <ver>` is on the roadmap.
 - **Distros without `update-alternatives`**: Arch, Fedora, RHEL, openSUSE aren't supported. Adding a backend is welcome as a contribution.
 - **Web server config**: Apache/Nginx still point at whatever socket or module you wired up. FPM restart is per-version and assumes `systemctl restart phpX.Y-fpm` style unit names.

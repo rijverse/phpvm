@@ -23,7 +23,7 @@
 
         .page-head {
             max-width: 1320px; margin: 0 auto 36px; padding: 0 4px;
-            display: grid; grid-template-columns: 1fr auto; align-items: end; gap: 24px;
+            display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 24px;
         }
         .page-head .kicker {
             font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em;
@@ -87,8 +87,9 @@
 
         /* ============ HERO ============ */
         .hero {
-            width: 1280px;
-            /* height set per-hero */
+            width: 100%;
+            max-width: 1280px;
+            /* height set per-hero is desktop-target; collapses to auto on narrow viewports */
             background:
                     radial-gradient(900px 600px at 80% 20%, rgba(138,118,214,0.20), transparent 60%),
                     radial-gradient(900px 800px at 10% 100%, rgba(79,55,140,0.30), transparent 65%),
@@ -201,7 +202,7 @@
         }
         .shot-frame img { display: block; width: 100%; height: auto; }
 
-        /* highlight ring — position via CSS vars per-hero */
+        /* highlight ring, position via CSS vars per-hero */
         .highlight {
             position: absolute;
             left: var(--hl-left);
@@ -334,6 +335,27 @@
             display: inline-flex; gap: 8px; align-items: center;
         }
         .bottom .right-col .cmd .p { color: var(--accent); }
+
+        /* ----- narrow viewports ----- */
+        @media (max-width: 900px) {
+            body { padding: 32px 16px 56px; }
+            .page-head { grid-template-columns: 1fr; align-items: start; gap: 16px; }
+            .page-head h1 { font-size: 24px; }
+            .hero {
+                height: auto !important;
+                padding: 32px 24px;
+                gap: 20px;
+            }
+            .top { flex-direction: column; align-items: flex-start; gap: 12px; }
+            .meta { flex-wrap: wrap; }
+            .shot-card { padding: 16px 16px 14px; }
+            .bottom { grid-template-columns: 1fr; gap: 20px; }
+            .bottom h2 { font-size: 26px; }
+            .bottom .right-col { align-items: flex-start; text-align: left; }
+            .callout, .annot-below { display: none; }
+            .highlight { box-shadow: 0 0 0 2px var(--accent), 0 0 24px 4px rgba(138,118,214,0.4); animation: none; }
+            .caption-strip { flex-direction: column; align-items: flex-start; gap: 6px; }
+        }
     </style>
 </head>
 <body>
@@ -353,7 +375,7 @@
 <div class="heroes">
 
     <!-- ============================================== -->
-    <!-- 01 — TASKBAR INDICATOR                          -->
+    <!-- 01 TASKBAR INDICATOR                            -->
     <!-- ============================================== -->
     <section data-screen-label="01 Taskbar indicator">
         <div class="section-head">
@@ -415,7 +437,7 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- 02 — TRAY MENU                                  -->
+    <!-- 02 TRAY MENU                                    -->
     <!-- ============================================== -->
     <section data-screen-label="02 Tray menu">
         <div class="section-head">
@@ -480,7 +502,7 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- 03 — GUI WINDOW                                 -->
+    <!-- 03 GUI WINDOW                                   -->
     <!-- ============================================== -->
     <section data-screen-label="03 GUI window">
         <div class="section-head">
@@ -534,7 +556,7 @@
                     </div>
                 </div>
                 <div class="bottom">
-                    <h2>See every PHP — and what it can do — <em>at a glance.</em></h2>
+                    <h2>Every PHP, every status, <em>at a glance.</em></h2>
                     <div class="right-col">
                         <div class="line">open the window</div>
                         <div class="cmd"><span class="p">$</span> phpvm-gui</div>
@@ -545,7 +567,7 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- 04 — TUI                                        -->
+    <!-- 04 TUI                                          -->
     <!-- ============================================== -->
     <section data-screen-label="04 TUI">
         <div class="section-head">
