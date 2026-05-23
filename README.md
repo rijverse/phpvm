@@ -103,6 +103,12 @@ Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
 
 ## The GUI
 
+A tray indicator sits in your panel showing whichever PHP is active. It updates live as `phpvm --auto` fires on `cd`, so the panel and your shell never disagree.
+
+<img src="assets/taskbar-php84.png" alt="phpvm tray indicator showing PHP 8.4 active" width="500"/>
+
+Click it and you get a menu for one-shot switching:
+
 <img src="assets/gui-tray-menu.png" alt="phpvm tray menu" width="700"/>
 
 Two shapes, same binary.
