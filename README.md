@@ -32,7 +32,7 @@ Under the hood it's just `update-alternatives --set php`. Nothing exotic. The wh
 
 ## Installing
 
-One-liner (no local clone needed — the installer bootstraps itself by fetching the repo into a temp dir, then cleans up):
+One-liner (no local clone needed, the installer bootstraps itself by fetching the repo into a temp dir, then cleans up):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo bash
@@ -45,7 +45,7 @@ git clone https://github.com/rijoanul-shanto/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
-The installer is interactive even under `curl … | sudo bash` — it reads prompts directly from `/dev/tty` so the pipe doesn't swallow them. Pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Falls back to non-interactive defaults only when there is genuinely no controlling terminal (headless CI, `nohup`, etc.).
+The installer is interactive even under `curl … | sudo bash`. It reads prompts directly from `/dev/tty` so the pipe doesn't swallow them. Pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Falls back to non-interactive defaults only when there is genuinely no controlling terminal (headless CI, `nohup`, etc.).
 
 Pin a specific tag or branch:
 
@@ -53,7 +53,7 @@ Pin a specific tag or branch:
 curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.2 bash
 ```
 
-To remove it — see [Uninstalling](#uninstalling) below.
+To remove it, see [Uninstalling](#uninstalling) below.
 
 ### Upgrading
 
@@ -96,7 +96,7 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 | `phpvm-gui` | Tray applet (see [The GUI](#the-gui)) |
 | `phpvm-gui --window` | Standalone GTK picker window, no tray |
 | `phpvm --self-update` | Re-runs the installer against the latest commit |
-| `phpvm --doctor` | Full diagnostic — CLI install, PHP runtimes, FPM, sudoers, shell hook, GUI, project |
+| `phpvm --doctor` | Full diagnostic: CLI install, PHP runtimes, FPM, sudoers, shell hook, GUI, project |
 | `phpvm --help` | Everything else |
 
 Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
@@ -134,7 +134,7 @@ echo "8.1" > .php-version
 phpvm --set-project 8.1
 ```
 
-phpvm walks up the directory tree looking for `.php-version`. If there isn't one, it reads `require.php` from `composer.json` and picks the highest installed version that satisfies the constraint. Caret, tilde, ranges, `|` unions — all the constraint syntaxes Composer accepts.
+phpvm walks up the directory tree looking for `.php-version`. If there isn't one, it reads `require.php` from `composer.json` and picks the highest installed version that satisfies the constraint. Caret, tilde, ranges, `|` unions, all the constraint syntaxes Composer accepts.
 
 ## Shell hook (auto-switch on `cd`)
 
