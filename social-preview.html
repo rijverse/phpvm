@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>phpvm social preview</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --accent: #8a76d6;
+            --accent-2: #4f378b;
+            --ink: #1a1530;
+            --muted: #5a5470;
+            --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        html, body { margin: 0; background: #c9c4ba; font-family: var(--sans); -webkit-font-smoothing: antialiased; }
+        body { display: grid; place-items: center; min-height: 100vh; padding: 24px; }
+
+        .card {
+            width: 1280px; height: 640px;
+            background:
+                    radial-gradient(circle at 18% 30%, rgba(138,118,214,0.18) 0, transparent 55%),
+                    radial-gradient(circle at 82% 78%, rgba(126,226,184,0.10) 0, transparent 50%),
+                    #efece5;
+            position: relative; overflow: hidden;
+            display: grid; grid-template-columns: 1fr 1.15fr; align-items: center;
+            padding: 0 80px;
+            color: var(--ink);
+        }
+
+        .logo {
+            display: grid; place-items: center;
+        }
+        .logo svg { width: 360px; height: 360px; filter: drop-shadow(0 18px 30px rgba(20,15,40,0.18)); }
+
+        .text { padding-left: 24px; }
+        .eyebrow {
+            font-family: var(--mono); font-size: 14px; letter-spacing: 0.18em;
+            text-transform: uppercase; color: var(--muted);
+            margin-bottom: 18px;
+        }
+        .wordmark {
+            font-family: var(--sans); font-weight: 800;
+            font-size: 132px; line-height: 0.95; letter-spacing: -0.04em;
+            margin: 0;
+        }
+        .wordmark .v { color: var(--accent); font-style: italic; font-weight: 700; }
+        .tagline {
+            font-family: var(--sans); font-weight: 500;
+            font-size: 26px; line-height: 1.35; color: var(--ink);
+            margin: 22px 0 28px; max-width: 560px;
+        }
+        .cmd {
+            font-family: var(--mono); font-size: 18px;
+            background: #1a1530; color: #efece5;
+            padding: 14px 20px; border-radius: 10px;
+            display: inline-flex; align-items: center; gap: 12px;
+            box-shadow: 0 10px 24px -10px rgba(20,15,40,0.55);
+        }
+        .cmd .prompt { color: var(--accent); }
+        .cmd .arg { color: #7ee2b8; }
+
+        .footer {
+            position: absolute; left: 80px; right: 80px; bottom: 36px;
+            display: flex; justify-content: space-between; align-items: center;
+            font-family: var(--mono); font-size: 13px; color: var(--muted);
+            letter-spacing: 0.06em;
+        }
+        .footer .badges { display: flex; gap: 18px; }
+
+        .hint {
+            position: fixed; bottom: 12px; left: 12px;
+            font-family: var(--mono); font-size: 11px; color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<div class="card" id="card">
+    <div class="logo">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+            <path d="M 36 6 C 52 3 57 20 48 28 C 43 33 34 29 32 22 C 30 15 28 9 36 6 Z" fill="#727FAF"/>
+            <ellipse cx="38" cy="43" rx="21" ry="15" fill="#8892BF"/>
+            <circle cx="20" cy="28" r="17" fill="#8892BF"/>
+            <path d="M 5 34 C -1 43 0 54 6 58 C 11 62 17 58 16 51 C 15 45 11 38 16 34" fill="#8892BF"/>
+            <circle cx="13" cy="23" r="4.5" fill="white"/>
+            <circle cx="13" cy="23" r="2.5" fill="#3a4882"/>
+            <circle cx="14" cy="22" r="1" fill="white"/>
+            <rect x="19" y="55" width="9" height="8" rx="4" fill="#727FAF"/>
+            <rect x="31" y="57" width="9" height="7" rx="3.5" fill="#727FAF"/>
+            <rect x="43" y="56" width="9" height="8" rx="4" fill="#727FAF"/>
+            <rect x="53" y="54" width="8" height="9" rx="4" fill="#727FAF"/>
+            <path d="M 58 38 Q 65 28 58 18" stroke="#727FAF" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        </svg>
+    </div>
+
+    <div class="text">
+        <div class="eyebrow">PHP version manager / Linux</div>
+        <h1 class="wordmark">php<span class="v">v</span>m</h1>
+        <p class="tagline">A small PHP version switcher for Linux. TUI, tray app, and a <code style="font-family:var(--mono);font-size:22px;">cd</code>-hook that picks the right PHP for your project.</p>
+        <div class="cmd"><span class="prompt">$</span> phpvm <span class="arg">--set 8.3</span></div>
+    </div>
+
+    <div class="footer">
+        <div>github.com/rijoanul-shanto/phpvm</div>
+        <div class="badges">
+            <span>TUI</span>
+            <span>GTK tray</span>
+            <span>cd hook</span>
+        </div>
+    </div>
+</div>
+</body>
+</html>
