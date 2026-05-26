@@ -3,6 +3,25 @@
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 is [SemVer](https://semver.org/).
 
+## [2.3.3] - 2026-05-27
+
+### Changed
+
+- Repository moved to `github.com/rijverse/phpvm` (previously `rijoanul-shanto/phpvm`). The `PHPVM_REMOTE` default in
+  `install.sh` — used by the remote bootstrap clone and by the `--self-update` fallback when no URL was recorded at
+  install time — now points at the new location, along with every repo link in `README.md`, `CONTRIBUTING.md`,
+  `index.html`, and `social-preview.html`.
+
+### Added
+
+- Project landing page (`index.html`) — a feature showcase of the taskbar indicator, tray menu, GUI window, and TUI
+  picker, each with an annotated screenshot.
+- Social preview — `social-preview.html` rendered to `assets/social-preview.png` (1280×640) for the GitHub repo
+  preview, plus Open Graph / Twitter Card meta tags on the landing page and a `rijverse` workspace badge linking to the
+  organization.
+
+---
+
 ## [2.3.2] - 2026-05-20
 
 ### Fixed
