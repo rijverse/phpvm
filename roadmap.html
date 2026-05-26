@@ -1,0 +1,272 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>phpvm — Roadmap</title>
+    <meta name="description" content="What's planned next for phpvm — the PHP version switcher for Linux." />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://rijverse.github.io/phpvm/roadmap.html" />
+    <meta property="og:title" content="phpvm — Roadmap" />
+    <meta property="og:description" content="What's planned next for phpvm — the PHP version switcher for Linux." />
+    <meta property="og:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
+    <meta property="og:image:width" content="1280" />
+    <meta property="og:image:height" content="640" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="phpvm — Roadmap" />
+    <meta name="twitter:description" content="What's planned next for phpvm — the PHP version switcher for Linux." />
+    <meta name="twitter:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+        :root {
+            --accent: #8a76d6;
+            --accent-2: #4f378b;
+            --sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+            --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+        }
+        html, body { margin: 0; background: #efece5; font-family: var(--sans); color: #111; -webkit-font-smoothing: antialiased; }
+        body { padding: 56px 40px 80px; }
+
+        .page-head {
+            max-width: 1320px; margin: 0 auto 36px; padding: 0 4px;
+            display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 24px;
+        }
+        .page-head .kicker {
+            font-family: var(--mono); font-size: 12px; letter-spacing: 0.1em;
+            text-transform: uppercase; color: rgba(20,15,40,0.6);
+        }
+        .page-head h1 {
+            font-size: 32px; font-weight: 700; letter-spacing: -0.025em;
+            margin: 8px 0 6px; color: #1a1530;
+        }
+        .page-head p {
+            margin: 0; color: rgba(20,15,40,0.6); font-size: 15px;
+            max-width: 760px; line-height: 1.5;
+        }
+        .page-head .repo-link {
+            font-family: var(--mono); font-size: 13px;
+            color: #1a1530; text-decoration: none;
+            background: #fff;
+            border: 1px solid rgba(20,15,40,0.12);
+            padding: 8px 14px; border-radius: 8px;
+            display: inline-flex; align-items: center; gap: 8px;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .page-head .repo-link:hover {
+            border-color: var(--accent-2);
+            box-shadow: 0 4px 14px -6px rgba(79,55,140,0.35);
+        }
+        .page-head .repo-link svg { width: 16px; height: 16px; fill: currentColor; }
+        .page-head .head-links { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        .page-head .workspace-link {
+            font-family: var(--mono); font-size: 13px;
+            color: #1a1530; text-decoration: none;
+            background: #fff;
+            border: 1px solid rgba(20,15,40,0.12);
+            padding: 5px 14px 5px 5px; border-radius: 999px;
+            display: inline-flex; align-items: center; gap: 8px;
+            transition: border-color 0.15s ease, box-shadow 0.15s ease;
+        }
+        .page-head .workspace-link:hover {
+            border-color: var(--accent-2);
+            box-shadow: 0 4px 14px -6px rgba(79,55,140,0.35);
+        }
+        .page-head .workspace-link img {
+            width: 24px; height: 24px; border-radius: 50%; display: block;
+        }
+
+        .roadmap-wrap { max-width: 1320px; margin: 0 auto; }
+
+        .roadmap-list {
+            list-style: none; margin: 0; padding: 0;
+            display: flex; flex-direction: column; gap: 12px;
+        }
+        .rm-item {
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            align-items: start; gap: 18px;
+            background: #fff;
+            border: 1px solid rgba(20,15,40,0.10);
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 10px 30px -22px rgba(20,15,40,0.5);
+        }
+        .rm-item .rm-n {
+            font-family: var(--mono); font-size: 12px;
+            width: 26px; height: 26px; border-radius: 7px;
+            display: grid; place-items: center;
+            background: #f3f0ea; color: rgba(20,15,40,0.55);
+            border: 1px solid rgba(20,15,40,0.08);
+        }
+        .rm-title {
+            font-size: 15px; font-weight: 600; color: #1a1530;
+            display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+        }
+        .rm-title code {
+            font-family: var(--mono); font-size: 13px; font-weight: 600;
+            background: rgba(138,118,214,0.10); color: var(--accent-2);
+            padding: 2px 7px; border-radius: 6px;
+        }
+        .rm-note {
+            margin-top: 4px; font-size: 13px;
+            color: rgba(20,15,40,0.55); line-height: 1.45;
+        }
+        .rm-note code {
+            font-family: var(--mono); font-size: 12px; color: rgba(20,15,40,0.72);
+        }
+        .rm-item.done { border-color: rgba(47,158,107,0.45); box-shadow: 0 10px 30px -22px rgba(47,158,107,0.45); }
+        .rm-item.done .rm-n {
+            background: rgba(47,158,107,0.14); border-color: rgba(47,158,107,0.4);
+            color: #1f8a5b; font-size: 14px; font-weight: 600;
+        }
+        .rm-item.done .rm-title { color: rgba(20,15,40,0.55); }
+        .rm-empty {
+            list-style: none; margin: 0;
+            background: #fff; border: 1px solid rgba(20,15,40,0.10); border-radius: 12px;
+            padding: 16px 20px; color: rgba(20,15,40,0.55); font-size: 14px;
+        }
+        .rm-empty a { color: var(--accent-2); text-decoration: none; }
+        .rm-empty a:hover { text-decoration: underline; }
+        .rm-badge {
+            font-family: var(--mono); font-size: 11px;
+            padding: 5px 10px; border-radius: 999px; white-space: nowrap;
+            border: 1px solid transparent;
+        }
+        .rm-badge.planned { background: rgba(138,118,214,0.12); border-color: rgba(138,118,214,0.35); color: var(--accent-2); }
+        .rm-badge.idea { background: rgba(20,15,40,0.04); border-color: rgba(20,15,40,0.12); color: rgba(20,15,40,0.5); }
+        .rm-badge.deferred { background: rgba(176,120,40,0.12); border-color: rgba(176,120,40,0.35); color: #8a5a12; }
+        .rm-badge.done { background: rgba(47,158,107,0.14); border-color: rgba(47,158,107,0.4); color: #1f8a5b; }
+        .rm-foot { margin-top: 16px; font-family: var(--mono); font-size: 13px; }
+        .rm-foot a { color: var(--accent-2); text-decoration: none; }
+        .rm-foot a:hover { text-decoration: underline; }
+
+        @media (max-width: 900px) {
+            body { padding: 32px 16px 56px; }
+            .page-head { grid-template-columns: 1fr; align-items: start; gap: 16px; }
+            .page-head h1 { font-size: 24px; }
+            .rm-item { grid-template-columns: auto 1fr; gap: 10px 14px; }
+            .rm-badge { grid-column: 2; justify-self: start; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="page-head">
+    <div>
+        <div class="kicker">phpvm</div>
+        <h1>Roadmap</h1>
+        <p>What's planned next. Items are in priority order — the top two are fully specced, the rest are idea-stage. Full detail lives in ROADMAP.md.</p>
+    </div>
+    <div class="head-links">
+        <a class="repo-link" href="index.html">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M7.78 1.22a.75.75 0 0 0-1.06 0L1.22 6.72a.75.75 0 0 0 1.06 1.06L3 7.06V13a1 1 0 0 0 1 1h2.5a.5.5 0 0 0 .5-.5V10h2v3.5a.5.5 0 0 0 .5.5H12a1 1 0 0 0 1-1V7.06l.72.72a.75.75 0 1 0 1.06-1.06L7.78 1.22z"/></svg>
+            Home
+        </a>
+        <a class="workspace-link" href="https://github.com/rijverse" target="_blank" rel="noopener">
+            <img src="https://github.com/rijverse.png?size=48" alt="rijverse workspace" />
+            rijverse
+        </a>
+        <a class="repo-link" href="https://github.com/rijverse/phpvm" target="_blank" rel="noopener">
+            <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            rijverse/phpvm
+        </a>
+    </div>
+</div>
+
+<div class="roadmap-wrap">
+    <ol id="roadmap-list" class="roadmap-list"></ol>
+    <noscript>
+        <p class="rm-empty">The live roadmap needs JavaScript enabled. <a href="https://github.com/rijverse/phpvm/blob/main/ROADMAP.md" target="_blank" rel="noopener">View ROADMAP.md on GitHub →</a></p>
+    </noscript>
+    <div class="rm-foot"><a href="https://github.com/rijverse/phpvm/blob/main/ROADMAP.md" target="_blank" rel="noopener">Read the full roadmap on GitHub →</a></div>
+</div>
+
+<script>
+(function () {
+    var listEl = document.getElementById('roadmap-list');
+    var SRC = 'ROADMAP.md';
+    var GH = 'https://github.com/rijverse/phpvm/blob/main/ROADMAP.md';
+
+    function esc(s) {
+        return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+    function inline(s) {
+        return esc(s).replace(/`([^`]+)`/g, '<code>$1</code>');
+    }
+    function fail() {
+        listEl.innerHTML = '<li class="rm-empty">Couldn’t load the roadmap right now. ' +
+            '<a href="' + GH + '" target="_blank" rel="noopener">View ROADMAP.md on GitHub →</a></li>';
+    }
+
+    listEl.innerHTML = '<li class="rm-empty">Loading roadmap…</li>';
+
+    fetch(SRC + window.location.search, { cache: 'no-cache' })
+        .then(function (r) { if (!r.ok) throw new Error(r.status); return r.text(); })
+        .then(function (md) {
+            var lines = md.split('\n');
+
+            // first paragraph under the "## N. ..." detail heading, used as the blurb
+            function blurb(num) {
+                var head = new RegExp('^##\\s+' + num + '\\.');
+                for (var i = 0; i < lines.length; i++) {
+                    if (!head.test(lines[i])) continue;
+                    var k = i + 1, buf = [];
+                    while (k < lines.length && lines[k].trim() === '') k++;
+                    while (k < lines.length && lines[k].trim() !== ''
+                        && !/^#{1,6}\s/.test(lines[k]) && !/^---\s*$/.test(lines[k])) {
+                        buf.push(lines[k].trim()); k++;
+                    }
+                    return buf.join(' ');
+                }
+                return '';
+            }
+
+            var start = -1;
+            for (var i = 0; i < lines.length; i++) {
+                if (/^##\s+Status overview\s*$/i.test(lines[i])) { start = i + 1; break; }
+            }
+            if (start === -1) throw new Error('no status overview');
+
+            var bullet = /^- \[([ xX])\]\s*\*\*(.+?)\*\*\s*\((.+?)\)\s*$/;
+            var items = [];
+            for (var j = start; j < lines.length; j++) {
+                if (/^##\s/.test(lines[j]) || /^---\s*$/.test(lines[j])) break;
+                var m = bullet.exec(lines[j].trim());
+                if (m) items.push({ done: m[1].toLowerCase() === 'x', title: m[2], status: m[3] });
+            }
+            if (!items.length) throw new Error('no items');
+
+            listEl.innerHTML = items.map(function (it) {
+                var num = '', title = it.title;
+                var nm = /^(\d+)\.\s*/.exec(title);
+                if (nm) { num = nm[1]; title = title.slice(nm[0].length); }
+
+                var st = it.status.toLowerCase();
+                var vm = /v\d+(?:\.\d+)+/.exec(it.status);
+                var kind = it.done ? 'done'
+                    : st.indexOf('planned') > -1 ? 'planned'
+                    : st.indexOf('deferred') > -1 ? 'deferred' : 'idea';
+                var label = kind + (vm ? ' · ' + vm[0] : '');
+                var desc = num ? blurb(num) : '';
+
+                return '<li class="rm-item' + (it.done ? ' done' : '') + '">' +
+                    '<span class="rm-n">' + (it.done ? '✓' : (num || '•')) + '</span>' +
+                    '<div class="rm-body">' +
+                        '<div class="rm-title">' + inline(title) + '</div>' +
+                        (desc ? '<div class="rm-note">' + inline(desc) + '</div>' : '') +
+                    '</div>' +
+                    '<span class="rm-badge ' + kind + '">' + esc(label) + '</span>' +
+                    '</li>';
+            }).join('');
+        })
+        .catch(fail);
+})();
+</script>
+
+</body>
+</html>
