@@ -16,7 +16,7 @@ If you've been juggling `update-alternatives --set php` by hand every time you s
 </div>
 
 <div align="center">
-  <img src="assets/gui-window.png" alt="phpvm GUI window" width="720"/>
+  <img src="assets/readme/gui-window.png" alt="phpvm GUI window" width="720"/>
   <p><em>One-click switching with SAPI, xdebug, FPM, and EOL badges.</em></p>
 </div>
 
@@ -79,7 +79,7 @@ phpvm --self-update https://github.com/rijverse/phpvm.git v2.2.0
 ## CLI
 Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin as the project version, <kbd>q</kbd> to bail.
 
-<img src="assets/tui.png" alt="phpvm TUI" width="700"/>
+<img src="assets/readme/tui.png" alt="phpvm TUI" width="700"/>
 
 | Command | What it does |
 |---|---|
@@ -105,11 +105,11 @@ Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
 
 A tray indicator sits in your panel showing whichever PHP is active. It updates live as `phpvm --auto` fires on `cd`, so the panel and your shell never disagree.
 
-<img src="assets/taskbar-php84.png" alt="phpvm tray indicator showing PHP 8.4 active" width="500"/>
+<img src="assets/readme/taskbar-php84.png" alt="phpvm tray indicator showing PHP 8.4 active" width="500"/>
 
 Click it and you get a menu for one-shot switching:
 
-<img src="assets/gui-tray-menu.png" alt="phpvm tray menu" width="700"/>
+<img src="assets/readme/gui-tray-menu.png" alt="phpvm tray menu" width="700"/>
 
 Two shapes, same binary.
 

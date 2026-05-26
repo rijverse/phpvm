@@ -10,14 +10,14 @@
     <meta property="og:url" content="https://rijverse.github.io/phpvm/" />
     <meta property="og:title" content="phpvm — PHP version manager for Linux" />
     <meta property="og:description" content="A small PHP version switcher for Linux. TUI, tray app, and a cd-hook that picks the right PHP for your project." />
-    <meta property="og:image" content="https://rijverse.github.io/phpvm/assets/social-preview.png" />
+    <meta property="og:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="phpvm — PHP version manager for Linux" />
     <meta name="twitter:description" content="A small PHP version switcher for Linux. TUI, tray app, and a cd-hook that picks the right PHP for your project." />
-    <meta name="twitter:image" content="https://rijverse.github.io/phpvm/assets/social-preview.png" />
+    <meta name="twitter:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -228,13 +228,12 @@
         .shot-frame {
             position: relative;
             border-radius: 12px;
-            overflow: hidden;
             background: #1a1530;
             box-shadow:
                     0 0 0 1px rgba(255,255,255,0.06) inset,
                     0 18px 50px -20px rgba(0,0,0,0.55);
         }
-        .shot-frame img { display: block; width: 100%; height: auto; }
+        .shot-frame img { display: block; width: 100%; height: auto; border-radius: 12px; }
 
         /* highlight ring, position via CSS vars per-hero */
         .highlight {
@@ -255,14 +254,14 @@
             0%, 100% {
                 box-shadow:
                         0 0 0 2px var(--accent),
-                        0 0 0 6px rgba(138,118,214,0.18),
-                        0 0 40px 6px rgba(138,118,214,0.45);
+                        0 0 0 5px rgba(138,118,214,0.10),
+                        0 0 24px 2px rgba(138,118,214,0.30);
             }
             50% {
                 box-shadow:
-                        0 0 0 2px var(--accent),
-                        0 0 0 10px rgba(138,118,214,0.10),
-                        0 0 60px 14px rgba(138,118,214,0.55);
+                        0 0 0 4px var(--accent),
+                        0 0 0 14px rgba(138,118,214,0.28),
+                        0 0 80px 22px rgba(138,118,214,0.85);
             }
         }
 
@@ -448,7 +447,7 @@
                             <span class="dots"><i></i><i></i><i></i></span>
                         </div>
                         <div class="shot-frame">
-                            <img src="assets/taskbar-php84.png" alt="System tray showing PHP 8.4 active" />
+                            <img src="assets/showcase/taskbar-php84.png" alt="System tray showing PHP 8.4 active" />
                             <div class="highlight" aria-hidden="true"></div>
                             <div class="callout">
                                 <div class="bubble">active PHP version</div>
@@ -513,7 +512,7 @@
                             <span class="dots"><i></i><i></i><i></i></span>
                         </div>
                         <div class="shot-frame">
-                            <img src="assets/gui-tray-menu.png" alt="phpvm tray menu showing PHP 8.3 active with checkmark" />
+                            <img src="assets/showcase/gui-tray-menu.png" alt="phpvm tray menu showing PHP 8.3 active with checkmark" />
                             <div class="highlight" aria-hidden="true"></div>
                             <div class="callout">
                                 <div class="bubble">active · ✓ checked</div>
@@ -578,7 +577,7 @@
                             <span class="dots"><i></i><i></i><i></i></span>
                         </div>
                         <div class="shot-frame">
-                            <img src="assets/gui-window.png" alt="phpvm GUI window with PHP 8.3 active row highlighted" />
+                            <img src="assets/showcase/gui-window.png" alt="phpvm GUI window with PHP 8.3 active row highlighted" />
                             <div class="highlight" aria-hidden="true"></div>
                             <div class="callout">
                                 <div class="bubble">active row · php 8.3</div>
@@ -643,7 +642,7 @@
                             <span class="dots"><i></i><i></i><i></i></span>
                         </div>
                         <div class="shot-frame">
-                            <img src="assets/tui.png" alt="phpvm TUI showing php8.2 selected as the active version" />
+                            <img src="assets/showcase/tui.png" alt="phpvm TUI showing php8.2 selected as the active version" />
                             <div class="highlight" aria-hidden="true"></div>
                             <div class="callout">
                                 <div class="bubble">selected · ● active</div>

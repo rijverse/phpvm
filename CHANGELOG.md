@@ -16,7 +16,7 @@ is [SemVer](https://semver.org/).
 
 - Project landing page (`index.html`) — a feature showcase of the taskbar indicator, tray menu, GUI window, and TUI
   picker, each with an annotated screenshot.
-- Social preview — `social-preview.html` rendered to `assets/social-preview.png` (1280×640) for the GitHub repo
+- Social preview — `social-preview.html` rendered to `assets/showcase/social-preview.png` (1280×640) for the GitHub repo
   preview, plus Open Graph / Twitter Card meta tags on the landing page and a `rijverse` workspace badge linking to the
   organization.
 
