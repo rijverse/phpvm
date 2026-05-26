@@ -255,14 +255,14 @@ A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some
 
 ## Roadmap
 
-Things on the list, roughly in priority order. Open an issue if you want to push one up the stack or claim one.
+Roughly in priority order. The top two are planned in detail in [ROADMAP.md](ROADMAP.md). Open an issue if you want to push one up the stack or claim one.
 
-- **`phpvm install <ver>`**: drive Ondřej Surý's PPA under the hood so you don't have to `apt install` by hand. `phpvm install 8.3`, `phpvm install --lts`, `phpvm install latest`.
-- **Per-shell switching**: `phpvm shell 8.2` that flips PHP for the current terminal only, via a `~/.phpvm/shims/php` shim on `$PATH`. Lets you run two shells on two PHP versions at the same time without touching `update-alternatives`.
-- **Extension manager**: `phpvm ext install xdebug redis imagick` per version, with the matching `php<ver>-<ext>` packages and ini wiring. None of the existing PHP version managers do this well.
-- **`phpvm exec <ver> <cmd>`**: run a one-off in a specific version without switching globally, like `nvm exec`. Handy for CI and quick sanity checks.
-- **Shell completion**: bash/zsh/fish completion for `--set`, `--exec`, etc. so `phpvm --set <TAB>` lists installed versions.
-- **`phpvm install --lts` / `latest` aliases**: track the moving targets without remembering current version numbers.
+- [ ] **`phpvm install <ver>`** (planned, v2.4.0): drive Ondřej Surý's PPA (Ubuntu) or Surý repo (Debian) under the hood so you don't have to `apt install` by hand. `phpvm install 8.3`, `phpvm install latest`.
+- [ ] **Per-shell switching, as the new default** (planned, v2.5.0): `phpvm shell 8.2` flips PHP for the current terminal only, via a `~/.phpvm/shims/php` shim on `$PATH`. Two shells on two versions at once, no sudo. Global switching stays available as `phpvm global` (today's `--set`).
+- [ ] **Extension manager**: `phpvm ext install xdebug redis imagick` per version, with the matching `php<ver>-<ext>` packages and ini wiring. None of the existing PHP version managers do this well.
+- [ ] **`phpvm exec <ver> <cmd>`**: run a one-off in a specific version without switching, like `nvm exec`. Handy for CI and quick sanity checks.
+- [ ] **Shell completion**: bash/zsh/fish completion for `shell`, `global`, `install`, etc. so `phpvm global <TAB>` lists installed versions.
+- [ ] **`phpvm install --lts` alias**: track the moving LTS target without remembering version numbers. Needs a maintained EOL table; `latest` ships with install above.
 
 ## Contributing
 
