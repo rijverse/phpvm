@@ -36,7 +36,7 @@ if [[ ! -f "$SCRIPT_DIR/phpvm.sh" || ! -f "$SCRIPT_DIR/phpvm-gui.py" || ! -d "$S
         echo -e "  ${DIM}Install git, or clone the repo and run ./install.sh from inside it.${NC}" >&2
         exit 1
     fi
-    PHPVM_REMOTE="${PHPVM_REMOTE:-https://github.com/rijoanul-shanto/phpvm.git}"
+    PHPVM_REMOTE="${PHPVM_REMOTE:-https://github.com/rijverse/phpvm.git}"
     PHPVM_REF="${PHPVM_REF:-main}"
     PHPVM_BOOTSTRAP_TMP=$(mktemp -d)
     trap 'rm -rf "$PHPVM_BOOTSTRAP_TMP"' EXIT

@@ -35,13 +35,13 @@ Under the hood it's just `update-alternatives --set php`. Nothing exotic. The wh
 One-liner (no local clone needed, the installer bootstraps itself by fetching the repo into a temp dir, then cleans up):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/rijverse/phpvm/main/install.sh | sudo bash
 ```
 
 Or clone and run it interactively:
 
 ```bash
-git clone https://github.com/rijoanul-shanto/phpvm.git
+git clone https://github.com/rijverse/phpvm.git
 cd phpvm && sudo bash install.sh
 ```
 
@@ -50,7 +50,7 @@ The installer is interactive even under `curl ... | sudo bash`. It reads prompts
 Pin a specific tag or branch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.2 bash
+curl -fsSL https://raw.githubusercontent.com/rijverse/phpvm/main/install.sh | sudo PHPVM_REF=v2.3.2 bash
 ```
 
 To remove it, see [Uninstalling](#uninstalling) below.
@@ -66,8 +66,8 @@ That pulls the latest from the repo URL captured at install time and re-runs the
 If you installed from a tarball (no recorded URL), you can pass one explicitly, optionally with a tag or branch:
 
 ```bash
-phpvm --self-update https://github.com/rijoanul-shanto/phpvm.git
-phpvm --self-update https://github.com/rijoanul-shanto/phpvm.git v2.2.0
+phpvm --self-update https://github.com/rijverse/phpvm.git
+phpvm --self-update https://github.com/rijverse/phpvm.git v2.2.0
 ```
 
 ### What you need
@@ -222,7 +222,7 @@ phpvm/
 One-liner (no local clone needed):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/rijoanul-shanto/phpvm/main/uninstall.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/rijverse/phpvm/main/uninstall.sh | sudo bash
 ```
 
 Or from a local clone:

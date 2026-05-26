@@ -5,7 +5,7 @@ Patches welcome. The core is intentionally simple — a bash script and a Python
 ## Setup
 
 ```bash
-git clone https://github.com/rijoanul-shanto/phpvm.git
+git clone https://github.com/rijverse/phpvm.git
 cd phpvm
 ```
 
