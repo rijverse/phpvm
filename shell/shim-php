@@ -1,0 +1,11 @@
+#!/bin/sh
+# phpvm php shim. Installed to <HOOK_DIR>/shims/php, which the phpvm shell hook
+# prepends to PATH so this runs instead of /usr/bin/php. It picks the per-shell
+# pin first, then the project (cd-hook) version, then falls through to the global
+# /usr/bin/php symlink. All paths are absolute, so there is no recursion back
+# into this shim.
+v="${PHPVM_SHELL_VERSION:-$PHPVM_AUTO_VERSION}"
+if [ -n "$v" ] && [ -x "/usr/bin/php$v" ]; then
+    exec "/usr/bin/php$v" "$@"
+fi
+exec /usr/bin/php "$@"
