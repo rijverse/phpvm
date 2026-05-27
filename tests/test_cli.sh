@@ -41,6 +41,12 @@ out=$(bash "$PHPVM" --current 2>&1); rc=$?
 [[ $rc -eq 0 || "$out" == *"No active"* || "$out" == *"none"* || "$out" == *"php"* ]] \
     && ok "--current runs without crash" || fail "--current crashed (rc=${rc}): ${out}"
 
+sep "--current three-layer breakdown"
+out=$(bash "$PHPVM" --current 2>&1)
+[[ "$out" == *"shell:"* && "$out" == *"project:"* && "$out" == *"global:"* ]] \
+    && ok "--current shows shell/project/global labels" \
+    || fail "--current missing layer labels: ${out}"
+
 sep "--set (no version arg — expect usage error, not crash)"
 out=$(bash "$PHPVM" --set 2>&1); rc=$?
 [[ $rc -ne 0 && "$out" == *"Usage"* ]] \
@@ -138,10 +144,51 @@ rc=$?
 rm -rf "$tmpd"
 [[ $rc -eq 0 ]] && ok "local 8.1 writes .php-version" || fail "local did not write .php-version (rc=${rc})"
 
+sep "local normalizes version input"
+tmpd2=$(mktemp -d)
+( cd "$tmpd2" && bash "$PHPVM" local php8.1 >/dev/null 2>&1 && [[ "$(cat .php-version)" == "8.1" ]] )
+[[ $? -eq 0 ]] && ok "local php8.1 normalizes to 8.1" || fail "local php8.1 did not normalize"
+rm -rf "$tmpd2"
+tmpd3=$(mktemp -d)
+( cd "$tmpd3" && bash "$PHPVM" local 8.2.0 >/dev/null 2>&1 && [[ "$(cat .php-version)" == "8.2" ]] )
+[[ $? -eq 0 ]] && ok "local 8.2.0 normalizes to 8.2" || fail "local 8.2.0 did not normalize"
+rm -rf "$tmpd3"
+
 sep "shell (direct invoke without wrapper, guides to --enable-hook)"
 out=$(bash "$PHPVM" shell 8.3 2>&1); rc=$?
 [[ $rc -ne 0 && "$out" == *"enable-hook"* ]] \
     && ok "direct shell invoke points at --enable-hook" || fail "shell direct invoke wrong (rc=${rc}): ${out}"
+
+sep "shim (shell/shim-php)"
+SHIM="$(dirname "$PHPVM")/shell/shim-php"
+if [[ ! -x "$SHIM" ]]; then
+    fail "shim not executable: $SHIM"
+else
+    ok "shim exists and is executable"
+
+    # no env set: falls back to /usr/bin/php
+    out=$(PHPVM_SHELL_VERSION="" PHPVM_AUTO_VERSION="" sh "$SHIM" --version 2>&1); rc=$?
+    [[ $rc -eq 0 && "$out" == *"PHP"* ]] \
+        && ok "shim with no env falls back to /usr/bin/php" \
+        || fail "shim fallback failed (rc=${rc}): ${out}"
+
+    # unknown version: /usr/bin/php9.99 doesn't exist, falls back to /usr/bin/php
+    out=$(PHPVM_SHELL_VERSION=9.99 sh "$SHIM" --version 2>&1); rc=$?
+    [[ $rc -eq 0 && "$out" == *"PHP"* ]] \
+        && ok "shim with unknown version falls back to /usr/bin/php" \
+        || fail "shim unknown-version fallback failed (rc=${rc}): ${out}"
+
+    # installed version: shim should exec /usr/bin/phpX.Y directly
+    inst_shim=$(update-alternatives --list php 2>/dev/null | grep -oE 'php[0-9]+\.[0-9]+' | head -1 | sed 's/php//')
+    if [[ -n "$inst_shim" && -x "/usr/bin/php${inst_shim}" ]]; then
+        out=$(PHPVM_SHELL_VERSION="$inst_shim" sh "$SHIM" --version 2>&1); rc=$?
+        [[ $rc -eq 0 && "$out" == *"$inst_shim"* ]] \
+            && ok "shim pins to installed version ${inst_shim}" \
+            || fail "shim version pin failed (rc=${rc}): ${out}"
+    else
+        ok "shim version-pin test skipped (no versioned binary found)"
+    fi
+fi
 
 sep "bash version guard"
 guard=$(grep -c "BASH_VERSINFO" "$PHPVM") 2>/dev/null || guard=0
