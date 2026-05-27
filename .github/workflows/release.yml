@@ -21,6 +21,7 @@ jobs:
           missing=0
           for f in phpvm.sh phpvm-gui.py install.sh uninstall.sh \
                    shell/php-auto.bash shell/php-auto.zsh shell/php-auto.fish \
+                   shell/shim-php \
                    assets/phpvm.svg CHANGELOG.md; do
             if [[ ! -f "$f" ]]; then
               echo "::error::Missing file: $f"
@@ -47,6 +48,7 @@ jobs:
           bash -n install.sh
           bash -n uninstall.sh
           bash -n shell/php-auto.bash
+          sh -n shell/shim-php
 
       - name: Extract changelog section for this tag
         id: notes

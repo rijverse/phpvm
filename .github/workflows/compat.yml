@@ -36,6 +36,7 @@ jobs:
             install.sh \
             uninstall.sh \
             shell/php-auto.bash \
+            shell/shim-php \
             tests/test_cli.sh \
             tests/test_gui.sh
 
