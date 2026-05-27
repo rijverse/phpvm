@@ -77,7 +77,7 @@ phpvm --self-update https://github.com/rijverse/phpvm.git v2.2.0
 - For the GUI: `python3-gi`, GTK3, AppIndicator3. The install command is in the GUI section below.
 
 ## CLI
-Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> to switch, <kbd>p</kbd> to pin as the project version, <kbd>q</kbd> to bail.
+Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to move, <kbd>Enter</kbd> to pin the current shell, <kbd>g</kbd> for a system-wide switch, <kbd>p</kbd> to pin the project, <kbd>q</kbd> to bail.
 
 <img src="assets/readme/tui.png" alt="phpvm TUI" width="700"/>
 
@@ -85,22 +85,24 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 |---|---|
 | `phpvm` | Opens the TUI |
 | `phpvm --list` | Lists installed PHP versions |
-| `phpvm --current` | Prints whichever one is active |
-| `phpvm --set 8.2` | Switches globally to 8.2 |
+| `phpvm --current` | Shows the effective version plus the shell / project / global breakdown |
+| `phpvm shell 8.2` | Switches **this terminal only**, no sudo (see [Per-shell switching](#per-shell-switching)) |
+| `phpvm shell --unset` | Drops the per-shell pin |
+| `phpvm local 8.2` | Pins the project: writes `.php-version`, no sudo |
+| `phpvm global 8.2` | Switches the system default via `update-alternatives` (sudo) |
 | `phpvm install 8.3` | Installs PHP 8.3 from Ondřej Surý's repo (see [Installing PHP versions](#installing-php-versions)) |
 | `phpvm --auto` | Reads `.php-version` / `composer.json` and switches |
 | `phpvm --auto --print [dir]` | Prints the resolved project PHP version without switching |
-| `phpvm --set-project 8.2` | Writes `.php-version` here |
-| `phpvm --enable-hook [shell]` | Adds the auto-switch hook to your rc |
+| `phpvm --enable-hook [shell]` | Adds the shell hook + shim to your rc |
 | `phpvm --disable-hook [shell]` | Removes it (rc is backed up first) |
 | `phpvm --window` | Launches the GTK picker window, then frees the terminal |
 | `phpvm-gui` | Tray applet (see [The GUI](#the-gui)) |
 | `phpvm-gui --window` | Standalone GTK picker window, no tray |
 | `phpvm --self-update` | Re-runs the installer against the latest commit |
-| `phpvm --doctor` | Full diagnostic: CLI install, PHP runtimes, FPM, sudoers, shell hook, GUI, project |
+| `phpvm --doctor` | Full diagnostic: CLI install, PHP runtimes, FPM, sudoers, shell hook, shim, GUI, project |
 | `phpvm --help` | Everything else |
 
-Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
+`--set` is kept as an alias for `global`, and `--set-project` for `local`, so old muscle memory and scripts keep working. Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
 
 ## Installing PHP versions
 
@@ -124,13 +126,38 @@ Versions are `X.Y` (or `latest`); patch levels like `8.2.13` are rejected. `apt`
 
 Other distros aren't supported: install PHP with your own package manager and phpvm will pick it up via `update-alternatives`.
 
+## Per-shell switching
+
+This is the everyday switch, and it's the default. `phpvm shell 8.2` changes PHP for **the current terminal only**, with no sudo and no effect on any other shell:
+
+```bash
+phpvm shell 8.2     # this terminal is now on 8.2
+phpvm shell 8.3     # ...and this one on 8.3, at the same time
+phpvm shell --unset # back to the project / global default
+```
+
+Two terminals can run two PHP versions at once. It works the way rbenv, pyenv, and asdf do: a tiny `php` shim on your `PATH` reads a `PHPVM_SHELL_VERSION` env var and execs the matching `/usr/bin/phpX.Y`. The shim and the `phpvm()` shell wrapper come from the shell hook, so this needs the hook enabled (the installer does that by default; otherwise run `phpvm --enable-hook`).
+
+Resolution order, highest priority first:
+
+1. **shell** pin from `phpvm shell` (`PHPVM_SHELL_VERSION`), sticky until you `--unset`
+2. **project** version from `.php-version` / `composer.json`, re-evaluated on every `cd`
+3. **global** default from `update-alternatives` (`/usr/bin/php`)
+
+`phpvm --current` prints all three plus the effective one. A shell pin always wins, so an explicit `phpvm shell` is never silently overridden when you change directories.
+
+When to reach for the others:
+
+- `phpvm global <v>` (sudo): the system-wide default. This is what cron, systemd, other users, and PHP-FPM see, since none of them load your shell hook. Still aliased as `phpvm --set`.
+- `phpvm local <v>`: writes `.php-version` so the whole project gets that version automatically. Aliased as `phpvm --set-project`.
+
 ## The GUI
 
-A tray indicator sits in your panel showing whichever PHP is active. It updates live as `phpvm --auto` fires on `cd`, so the panel and your shell never disagree.
+A tray indicator sits in your panel showing the **system-wide (global)** PHP. A tray app isn't attached to a terminal, so it works at the global level: clicking a version runs the same switch as `phpvm global`. The tray reflects the global default, and a terminal pinned with `phpvm shell` can sit above it, so the tray and a given shell may legitimately differ.
 
 <img src="assets/readme/taskbar-php84.png" alt="phpvm tray indicator showing PHP 8.4 active" width="700"/>
 
-Click it and you get a menu for one-shot switching:
+Click it and you get a menu for a one-click global switch:
 
 <img src="assets/readme/gui-tray-menu.png" alt="phpvm tray menu" width="700"/>
 
@@ -160,7 +187,7 @@ About FPM restart: it tries passwordless `sudo` first, and if that fails it pops
 ```bash
 echo "8.1" > .php-version
 # or
-phpvm --set-project 8.1
+phpvm local 8.1
 ```
 
 phpvm walks up the directory tree looking for `.php-version`. If there isn't one, it reads `require.php` from `composer.json` and picks the highest installed version that satisfies the constraint. Caret, tilde, ranges, `|` unions, all the constraint syntaxes Composer accepts.
@@ -195,9 +222,9 @@ source /etc/phpvm/php-auto.fish      # or  ~/.phpvm/php-auto.fish
 
 ## About sudo
 
-Every switch ends up running `sudo update-alternatives --set php ...`
+Only the **global** switch needs sudo. `phpvm global` (and its `--set` alias) moves the system-wide `/usr/bin/php` symlink via `sudo update-alternatives --set php ...`. Per-shell (`phpvm shell`) and per-project (`phpvm local`) switching touch only your own environment, so they never ask for a password.
 
-By default that means a password prompt. The installer offers to drop a sudoers rule so you don't get one:
+For the global switch, the installer offers to drop a sudoers rule so you don't get a prompt:
 
 ```
 # /etc/sudoers.d/phpvm
@@ -206,7 +233,7 @@ username ALL=(ALL) NOPASSWD: /usr/bin/update-alternatives --set php /usr/bin/php
 
 The glob is intentionally narrow, it matches `php8.2` but not `phpunit` or `php-config`.
 
-If you skip the sudoers rule, the CLI just asks for a password the normal way (and labels the prompt so you know who's asking). The GUI tries passwordless sudo first, then falls back to the polkit dialog.
+If you skip the sudoers rule, `phpvm global` just asks for a password the normal way (and labels the prompt so you know who's asking). The GUI, which is global by nature, tries passwordless sudo first, then falls back to the polkit dialog.
 
 <details>
 <summary>If <code>phpvm</code> reports no versions installed</summary>
@@ -233,7 +260,8 @@ phpvm/
 ├── shell/
 │   ├── php-auto.bash
 │   ├── php-auto.zsh
-│   └── php-auto.fish
+│   ├── php-auto.fish
+│   └── shim-php         php resolver, installed to <hook dir>/shims/php
 ├── install.sh
 └── uninstall.sh
 ```
@@ -269,7 +297,7 @@ Shell RCs are backed up as `<file>.phpvm-backup` before any edits. Running under
 
 A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some are out of scope for now.
 
-- **Per-shell switching**: switches are currently system-wide via `update-alternatives`, so two shells on two versions at once isn't supported yet. A shim-based `phpvm shell <ver>` is on the roadmap.
+- **Per-shell pins are shell-only**: `phpvm shell` lives in your interactive shell's environment, so it's invisible to cron, systemd, other users, non-interactive scripts, and the GUI. Those all follow the global default, which is what `phpvm global` is for.
 - **Distros without `update-alternatives`**: Arch, Fedora, RHEL, openSUSE aren't supported. Adding a backend is welcome as a contribution.
 - **Web server config**: Apache/Nginx still point at whatever socket or module you wired up. FPM restart is per-version and assumes `systemctl restart phpX.Y-fpm` style unit names.
 - **Patch-level pinning**: everything is `X.Y`. If you need `8.2.13` exactly, you'll want a different tool.
@@ -280,7 +308,7 @@ A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some
 Roughly in priority order. The top two are planned in detail in [ROADMAP.md](ROADMAP.md). Open an issue if you want to push one up the stack or claim one.
 
 - [x] **`phpvm install <ver>`** (shipped in v2.4.0): drives Ondřej Surý's PPA (Ubuntu) or Surý repo (Debian) under the hood so you don't have to `apt install` by hand. `phpvm install 8.3`, `phpvm install latest`. See [Installing PHP versions](#installing-php-versions).
-- [ ] **Per-shell switching, as the new default** (planned, v2.5.0): `phpvm shell 8.2` flips PHP for the current terminal only, via a `~/.phpvm/shims/php` shim on `$PATH`. Two shells on two versions at once, no sudo. Global switching stays available as `phpvm global` (today's `--set`).
+- [x] **Per-shell switching, as the new default** (shipped in v2.5.0): `phpvm shell 8.2` flips PHP for the current terminal only, via a shim on `$PATH`. Two shells on two versions at once, no sudo. Global switching stays available as `phpvm global` (and the `--set` alias). See [Per-shell switching](#per-shell-switching).
 - [ ] **Extension manager**: `phpvm ext install xdebug redis imagick` per version, with the matching `php<ver>-<ext>` packages and ini wiring. None of the existing PHP version managers do this well.
 - [ ] **`phpvm exec <ver> <cmd>`**: run a one-off in a specific version without switching, like `nvm exec`. Handy for CI and quick sanity checks.
 - [ ] **Shell completion**: bash/zsh/fish completion for `shell`, `global`, `install`, etc. so `phpvm global <TAB>` lists installed versions.

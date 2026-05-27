@@ -3,6 +3,47 @@
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 is [SemVer](https://semver.org/).
 
+## [2.5.0] - 2026-05-28
+
+### Added
+
+- Per-shell switching, now the default. `phpvm shell <ver>` switches PHP for the current terminal only, with no sudo,
+  so two terminals can run two versions at once. It follows the rbenv / pyenv / asdf model: a `php` shim on `PATH`
+  (installed to `<hook dir>/shims/php`) reads `PHPVM_SHELL_VERSION` and execs the matching `/usr/bin/phpX.Y`, falling
+  back to the global symlink. `phpvm shell --unset` drops the pin.
+- `phpvm local <ver>` and `phpvm global <ver>` as the project and system-wide verbs. `local` writes `.php-version`
+  (no sudo); `global` moves the `update-alternatives` symlink (sudo). The old `--set` and `--set-project` flags stay as
+  aliases, so existing usage and scripts keep working.
+- A `php` shim template (`shell/shim-php`) plus a `phpvm()` shell wrapper in each hook. The wrapper routes `shell` and
+  the bare TUI through `eval` (fish uses `| source`) so they can change the current shell; everything else calls the
+  binary directly.
+- Resolution is now three layers: shell pin (`PHPVM_SHELL_VERSION`), then project (`PHPVM_AUTO_VERSION`, set by the
+  cd-hook from `.php-version` / `composer.json`), then the global symlink. An explicit shell pin always wins, so it is
+  never overridden by a later `cd`.
+
+### Changed
+
+- The cd-hook no longer runs a sudo global switch. It now resolves the project version with `phpvm --auto --print` and
+  exports `PHPVM_AUTO_VERSION` (or unsets it on leaving), which the shim reads. The everyday path is sudo-free.
+- The TUI now pins the current shell on Enter when launched through the wrapper (drawing to the terminal while emitting
+  the assignment on stdout, the way fzf does), with `g` for a global switch and `p` for the project. Run without the
+  wrapper, Enter falls back to a global switch and notes how to enable per-shell pinning.
+- `phpvm --current` reports the shell pin, project, and global layers separately, plus the effective version. `--doctor`
+  gains a "Per-shell switching" section that checks the shim and whether the shim dir is on `PATH`.
+- `install.sh` installs the shim, enables the shell hook by default (the everyday behavior depends on it), and reframes
+  the sudoers prompt as needed only for `phpvm global`.
+- The GUI is documented as global by nature: the tray reflects and sets the system default, and a shell pinned with
+  `phpvm shell` can legitimately sit above it.
+
+### Fixed
+
+- `phpvm install` no longer risks hanging on an unattended `--yes` run. apt is now invoked as
+  `sudo env DEBIAN_FRONTEND=noninteractive apt-get ...`, so a package postinst (e.g. tzdata) can't block on an
+  interactive debconf prompt. `sudo` resets the environment, which is why the frontend is set through `env` rather than
+  an inline assignment; apt stays password-gated exactly as before.
+
+---
+
 ## [2.4.0] - 2026-05-27
 
 ### Added

@@ -7,7 +7,7 @@ idea-stage notes so the whole picture lives in one place.
 ## Status overview
 
 - [x] **1. `phpvm install <ver>`** (shipped, v2.4.0)
-- [ ] **2. Per-shell switching, as the new default** (planned, v2.5.0)
+- [x] **2. Per-shell switching, as the new default** (shipped, v2.5.0)
 - [ ] **3. Extension manager** (idea)
 - [ ] **4. `phpvm exec <ver> <cmd>`** (idea)
 - [ ] **5. Shell completion** (idea)
@@ -76,9 +76,12 @@ Reads `/etc/os-release`:
 
 ---
 
-## 2. Per-shell switching, as the new default (v2.5.0)
+## 2. Per-shell switching, as the new default (v2.5.0) - shipped
 
-The architectural inversion. Gets its own release.
+The architectural inversion. Shipped in v2.5.0; the spec below is what landed.
+The shim lives at `shell/shim-php` (installed to `<hook dir>/shims/php`), the
+`phpvm()` wrapper and cd-hook rewrite are in `shell/php-auto.{bash,zsh,fish}`,
+and the verbs (`shell`, `sh-shell`, `local`, `global`) are in `phpvm.sh`.
 
 ### Why invert the default
 
