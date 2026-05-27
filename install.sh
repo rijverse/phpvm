@@ -250,11 +250,19 @@ cp "$SCRIPT_DIR/shell/php-auto.zsh"  "$HOOK_DIR/"
 cp "$SCRIPT_DIR/shell/php-auto.fish" "$HOOK_DIR/"
 success "Shell hooks installed"
 
+# shim: the `php` resolver that makes per-shell / per-project switching work.
+# Lives under HOOK_DIR (which the hook prepends to PATH, and uninstall removes).
+mkdir -p "$HOOK_DIR/shims"
+cp "$SCRIPT_DIR/shell/shim-php" "$HOOK_DIR/shims/php"
+chmod +x "$HOOK_DIR/shims/php"
+success "Shim installed at ${CYAN}${HOOK_DIR}/shims/php${NC}"
+
 # passwordless sudo
 
 echo ""
-echo -e "  ${BOLD}Passwordless sudo for auto-switching${NC}"
-echo -e "  ${DIM}Without this, each auto-switch prompts for your password.${NC}"
+echo -e "  ${BOLD}Passwordless sudo (for phpvm global only)${NC}"
+echo -e "  ${DIM}Only the system-wide switch (phpvm global / --set) uses sudo.${NC}"
+echo -e "  ${DIM}Per-shell (phpvm shell) and per-project (phpvm local) need none.${NC}"
 echo ""
 if (( UPGRADE )); then
     if [[ -f /etc/sudoers.d/phpvm ]] && grep -q 'php\*' /etc/sudoers.d/phpvm 2>/dev/null; then
@@ -294,8 +302,9 @@ fi
 # add hook to shell rc
 
 echo ""
-echo -e "  ${BOLD}Auto-switch hook${NC}"
-echo -e "  ${DIM}Automatically switches PHP when entering project directories.${NC}"
+echo -e "  ${BOLD}Shell hook${NC}"
+echo -e "  ${DIM}Powers per-shell switching (phpvm shell) and auto-switch on cd.${NC}"
+echo -e "  ${DIM}Puts the shim dir on PATH and adds the phpvm() wrapper to your shell.${NC}"
 echo ""
 
 RC=""
@@ -321,11 +330,16 @@ if [[ -n "$RC" ]]; then
         (( UPGRADE )) || warn "Hook already present in ${RC}"
     elif (( UPGRADE )); then
         info "Skipping shell hook prompt (upgrade mode)"
-    elif (( ! INTERACTIVE )); then
-        info "Non-interactive — skipping shell hook (run: phpvm --enable-hook)"
     else
-        read -rp "  Add auto-switch hook to ${RC}? [y/N] " ans < /dev/tty
-        if [[ "$ans" =~ ^[Yy]$ ]]; then
+        # default-enable: the everyday per-shell behavior depends on the hook
+        ans="y"
+        if (( INTERACTIVE )); then
+            read -rp "  Enable the shell hook in ${RC}? [Y/n] " ans < /dev/tty
+            ans="${ans:-y}"
+        else
+            info "Non-interactive, enabling the shell hook by default"
+        fi
+        if [[ ! "$ans" =~ ^[Nn]$ ]]; then
             {
                 echo ""
                 echo "# phpvm auto-switch"

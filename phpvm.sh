@@ -1,12 +1,12 @@
 #!/bin/bash
-# phpvm - PHP Version Manager v2.4.0
+# phpvm - PHP Version Manager v2.5.0
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
     echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
     exit 1
 fi
 
-VERSION="2.4.0"
+VERSION="2.5.0"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -19,6 +19,7 @@ NC='\033[0m'
 REVERSE='\033[7m'
 
 selected_index=0
+tui_wrap=false
 
 # helpers
 
@@ -98,6 +99,14 @@ detect_distro_repo() {
 # true when apt knows about the package (repo already provides it)
 apt_pkg_available() {
     apt-cache show "$1" 2>/dev/null | grep -q .
+}
+
+# apt-get under sudo with a non-interactive debconf frontend, so an unattended
+# `--yes` install can't wedge on a postinst prompt (e.g. tzdata). sudo resets the
+# environment, so we set DEBIAN_FRONTEND via `env` rather than an inline
+# assignment, which sudo would strip. apt stays password-gated as before.
+_sudo_apt() {
+    sudo env DEBIAN_FRONTEND=noninteractive apt-get "$@"
 }
 
 # project detection
@@ -285,21 +294,59 @@ cmd_list() {
 }
 
 cmd_current() {
-    local current
-    current=$(get_current_php)
-    if [[ -z "$current" ]]; then
+    # Headline is ground truth: whatever `php` resolves to right now (the shim
+    # when the hook is loaded, else /usr/bin/php). The breakdown below shows the
+    # three resolution layers that feed it. The env vars are inherited from the
+    # caller's shell, so this is accurate when run through the wrapper.
+    local phpbin actual
+    phpbin=$(command -v php 2>/dev/null)
+    actual=$(php --version 2>/dev/null | head -1)
+
+    local global_link global_name=""
+    global_link=$(get_current_php)
+    [[ -n "$global_link" ]] && global_name="${global_link##*/}"
+
+    if [[ -z "$actual" && -z "$global_name" ]]; then
         echo -e "${YELLOW}No active PHP version found.${NC}" >&2
         exit 1
     fi
-    echo -e "${GREEN}$(basename "$current")${NC}  ${DIM}($(php --version 2>/dev/null | head -1))${NC}"
+
+    if [[ -n "$actual" ]]; then
+        echo -e "${GREEN}${BOLD}${actual}${NC}"
+        [[ -n "$phpbin" ]] && echo -e "  ${DIM}via ${phpbin}${NC}"
+    fi
+
+    echo ""
+    local shell_pin="${PHPVM_SHELL_VERSION:-}"
+    local auto_pin="${PHPVM_AUTO_VERSION:-}"
+    local proj=""
+    [[ -z "$auto_pin" ]] && proj=$(detect_project_php 2>/dev/null || true)
+
+    if [[ -n "$shell_pin" ]]; then
+        echo -e "  ${DIM}shell:${NC}   ${CYAN}${shell_pin}${NC} ${DIM}(this terminal, phpvm shell)${NC}"
+    else
+        echo -e "  ${DIM}shell:${NC}   ${DIM}not pinned${NC}"
+    fi
+    if [[ -n "$auto_pin" ]]; then
+        echo -e "  ${DIM}project:${NC} ${CYAN}${auto_pin}${NC} ${DIM}(auto, from cd-hook)${NC}"
+    elif [[ -n "$proj" ]]; then
+        echo -e "  ${DIM}project:${NC} ${CYAN}${proj}${NC} ${DIM}(.php-version / composer.json)${NC}"
+    else
+        echo -e "  ${DIM}project:${NC} ${DIM}none${NC}"
+    fi
+    if [[ -n "$global_name" ]]; then
+        echo -e "  ${DIM}global:${NC}  ${CYAN}${global_name#php}${NC} ${DIM}(system default, phpvm global)${NC}"
+    else
+        echo -e "  ${DIM}global:${NC}  ${DIM}none${NC}"
+    fi
 }
 
-cmd_set() {
+cmd_global() {
     require_update_alternatives
     local query="$1"
     if [[ -z "$query" ]]; then
-        echo -e "${RED}Usage: phpvm --set <version>${NC}" >&2
-        echo -e "${DIM}Example: phpvm --set 8.2${NC}" >&2
+        echo -e "${RED}Usage: phpvm global <version>${NC}" >&2
+        echo -e "${DIM}Example: phpvm global 8.2${NC}" >&2
         exit 1
     fi
 
@@ -365,11 +412,11 @@ cmd_auto() {
     return "$rc"
 }
 
-cmd_set_project() {
+cmd_local() {
     local ver="$1"
     if [[ -z "$ver" ]]; then
-        echo -e "${RED}Usage: phpvm --set-project <version>${NC}" >&2
-        echo -e "${DIM}Example: phpvm --set-project 8.2${NC}" >&2
+        echo -e "${RED}Usage: phpvm local <version>${NC}" >&2
+        echo -e "${DIM}Example: phpvm local 8.2${NC}" >&2
         exit 1
     fi
 
@@ -399,6 +446,68 @@ cmd_set_project() {
     echo -e "${GREEN}✓${NC} Created ${BOLD}.php-version${NC} → ${CYAN}${ver}${NC}"
 }
 
+# per-shell switching
+
+# Emit shell code for the wrapper to eval. Default POSIX `export`; fish syntax
+# under --fish. On any problem it emits a snippet that prints to stderr and runs
+# `false`, so the eval in the caller's shell surfaces the error and returns
+# non-zero without setting anything.
+cmd_sh_shell() {
+    local fish=false do_unset=false ver=""
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --fish)  fish=true ;;
+            --unset) do_unset=true ;;
+            -*)      ;;
+            *)       ver="$1" ;;
+        esac
+        shift
+    done
+
+    if [[ "$do_unset" == "true" ]]; then
+        if [[ "$fish" == "true" ]]; then
+            echo "set -e PHPVM_SHELL_VERSION"
+        else
+            echo "unset PHPVM_SHELL_VERSION"
+        fi
+        return 0
+    fi
+
+    local norm
+    if [[ -z "$ver" ]] || ! norm=$(normalize_version "$ver"); then
+        echo "echo 'phpvm: usage: phpvm shell <version> | --unset' >&2; false"
+        return 0
+    fi
+    ver="$norm"
+
+    if ! find_version_by_query "$ver" >/dev/null; then
+        echo "echo 'phpvm: PHP ${ver} is not installed (try: phpvm install ${ver})' >&2; false"
+        return 0
+    fi
+
+    if [[ "$fish" == "true" ]]; then
+        echo "set -gx PHPVM_SHELL_VERSION ${ver}"
+    else
+        echo "export PHPVM_SHELL_VERSION=${ver}"
+    fi
+}
+
+# Direct-invoke fallback. The wrapper intercepts `shell` and routes it through
+# `sh-shell` + eval, so reaching the binary here means the wrapper is not loaded
+# and we cannot change the caller's shell. Tell them how to enable it.
+cmd_shell() {
+    local v="${1:-}"
+    echo -e "${YELLOW}!${NC} ${BOLD}phpvm shell${NC} needs the shell wrapper to switch this terminal." >&2
+    echo -e "${DIM}Enable it once (adds the hook + shim to your shell):${NC}" >&2
+    echo -e "${DIM}  phpvm --enable-hook${NC}" >&2
+    if [[ -n "$v" ]]; then
+        echo -e "${DIM}Or for this shell only:${NC}" >&2
+        echo -e "${DIM}  eval \"\$(phpvm sh-shell ${v})\"${NC}" >&2
+    fi
+    echo -e "${DIM}For a system-wide switch instead, use: phpvm global ${v:-<version>}${NC}" >&2
+    exit 1
+}
+
 # install
 
 # Configure the upstream PHP repo for $ver if apt can't already see php$ver-cli.
@@ -418,7 +527,7 @@ ensure_php_repo() {
         ubuntu)
             echo -e "  ${BLUE}Adding${NC} ${BOLD}ppa:ondrej/php${NC}"
             if ! command -v add-apt-repository &>/dev/null; then
-                sudo apt-get install -y software-properties-common || return 1
+                _sudo_apt install -y software-properties-common || return 1
             fi
             sudo add-apt-repository -y ppa:ondrej/php || return 1
             ;;
@@ -426,7 +535,7 @@ ensure_php_repo() {
             local keyring="/etc/apt/keyrings/sury-php.gpg"
             local list="/etc/apt/sources.list.d/sury-php.list"
             echo -e "  ${BLUE}Adding${NC} ${BOLD}deb.sury.org${NC} repo (${codename})"
-            sudo apt-get install -y ca-certificates curl || return 1
+            _sudo_apt install -y ca-certificates curl || return 1
             sudo install -d -m 0755 /etc/apt/keyrings || return 1
             curl -fsSL https://packages.sury.org/php/apt.gpg | sudo tee "$keyring" >/dev/null || return 1
             echo "deb [signed-by=${keyring}] https://packages.sury.org/php/ ${codename} main" \
@@ -437,7 +546,7 @@ ensure_php_repo() {
             ;;
     esac
 
-    sudo apt-get update
+    _sudo_apt update
 }
 
 cmd_install() {
@@ -523,7 +632,7 @@ cmd_install() {
     # idempotency for an explicit version (latest is re-checked once it resolves)
     if [[ "$is_latest" != "true" ]] && { [[ -x "/usr/bin/php${ver}" ]] || get_php_versions | grep -qx "/usr/bin/php${ver}"; }; then
         echo -e "${GREEN}✓${NC} PHP ${BOLD}${ver}${NC} is already installed."
-        echo -e "${DIM}Switch with: phpvm --set ${ver}    (per-project: phpvm --set-project ${ver})${NC}"
+        echo -e "${DIM}Use it: phpvm shell ${ver} (this terminal) | phpvm global ${ver} (system) | phpvm local ${ver} (project)${NC}"
         exit 0
     fi
 
@@ -577,7 +686,7 @@ cmd_install() {
     fi
 
     # shellcheck disable=SC2086
-    if ! sudo apt-get install -y $packages; then
+    if ! _sudo_apt install -y $packages; then
         echo -e "${RED}✗${NC} apt-get install failed." >&2
         exit 1
     fi
@@ -592,15 +701,17 @@ cmd_install() {
 
     echo -e "${GREEN}✓${NC} Installed PHP ${BOLD}${ver}${NC}"
 
-    # offer to switch
+    # offer to switch. install runs as a normal subprocess, so the only switch it
+    # can make durably is the global one (a per-shell pin can't reach back into
+    # the parent shell from here); the hint points at the no-sudo alternatives.
     if [[ "$auto_use" == "true" ]]; then
         do_switch "$bin"
     elif _tty_interactive; then
         local ans
-        read -rp "  Switch to PHP ${ver} now? [y/N] " ans < /dev/tty
+        read -rp "  Set PHP ${ver} as the system default now? [y/N] " ans < /dev/tty
         [[ "$ans" =~ ^[Yy]$ ]] && do_switch "$bin"
     else
-        echo -e "${DIM}Switch with: phpvm --set ${ver}${NC}"
+        echo -e "${DIM}Use it: phpvm shell ${ver} (this terminal) | phpvm global ${ver} (system)${NC}"
     fi
 }
 
@@ -1019,6 +1130,44 @@ cmd_doctor() {
         _doc_warn "Cannot locate shell rc (shell=${shell_name})"
     fi
 
+    # per-shell switching (shim)
+    _doc_section "Per-shell switching (shim)"
+
+    if [[ -n "$hook_dir" ]]; then
+        local shim="${hook_dir}/shims/php"
+        if [[ -x "$shim" ]]; then
+            _doc_ok "Shim present: ${BOLD}${shim}${NC}"
+        else
+            _doc_bad "Shim missing or not executable: ${shim}"
+            _doc_info "Fix: re-run install.sh"
+        fi
+
+        # shims dir on PATH is the proxy for "hook active in this shell": the
+        # phpvm() function itself can't be seen from a subprocess, but the hook
+        # prepends this dir, and PATH is inherited.
+        local shims_dir="${hook_dir}/shims"
+        if [[ ":${PATH}:" == *":${shims_dir}:"* ]]; then
+            _doc_ok "Shims dir on PATH (per-shell switching active)"
+            local active_php
+            active_php=$(command -v php 2>/dev/null)
+            [[ "$active_php" == "${shims_dir}/php" ]] \
+                && _doc_info "php resolves to the shim" \
+                || _doc_info "php resolves to ${active_php:-nothing} (a non-shim php precedes it on PATH)"
+        else
+            _doc_warn "Shims dir not on PATH, so phpvm shell won't affect this terminal"
+            _doc_info "Fix: phpvm --enable-hook, then open a new shell"
+        fi
+    else
+        _doc_skip "No hook dir, shim unavailable"
+    fi
+
+    if [[ -n "${PHPVM_SHELL_VERSION:-}" ]]; then
+        _doc_info "Shell pin: ${CYAN}PHPVM_SHELL_VERSION=${PHPVM_SHELL_VERSION}${NC}"
+    fi
+    if [[ -n "${PHPVM_AUTO_VERSION:-}" ]]; then
+        _doc_info "Project auto: ${CYAN}PHPVM_AUTO_VERSION=${PHPVM_AUTO_VERSION}${NC}"
+    fi
+
     # gui (optional)
     _doc_section "GUI / tray (optional)"
 
@@ -1172,15 +1321,18 @@ cmd_help() {
     echo -e "${BOLD}Usage:${NC}"
     echo -e "  phpvm                        Interactive TUI"
     echo -e "  phpvm --list                 List installed PHP versions"
-    echo -e "  phpvm --current              Show active PHP version"
-    echo -e "  phpvm --set <version>        Switch to version (e.g. 8.2)"
+    echo -e "  phpvm --current              Show active PHP version (shell pin, project, global)"
+    echo -e "  phpvm shell <version>        Switch this terminal only, no sudo (e.g. 8.2)"
+    echo -e "  phpvm shell --unset          Drop the per-shell pin"
+    echo -e "  phpvm local <version>        Pin this project: writes .php-version, no sudo"
+    echo -e "  phpvm global <version>       Switch the system default via update-alternatives (sudo)"
+    echo -e "    ${DIM}aliases: --set = global, --set-project = local${NC}"
     echo -e "  phpvm install <version>      Install PHP via Ondřej Surý's repo (e.g. 8.3, latest)"
     echo -e "    ${DIM}--minimal  drop -fpm    --with curl,mbstring  add extensions${NC}"
     echo -e "    ${DIM}--use  switch after install    --yes  skip prompts    --print  dry-run${NC}"
     echo -e "  phpvm --auto [--quiet]       Auto-switch from .php-version / composer.json"
     echo -e "  phpvm --auto --print [dir]   Print resolved project PHP version (no switch)"
-    echo -e "  phpvm --set-project <ver>    Write .php-version in current dir"
-    echo -e "  phpvm --enable-hook [shell]  Add auto-switch hook to shell rc (bash/zsh/fish)"
+    echo -e "  phpvm --enable-hook [shell]  Add the shell hook + shim to your rc (bash/zsh/fish)"
     echo -e "  phpvm --disable-hook [shell] Remove auto-switch hook from shell rc"
     echo -e "  phpvm --window               Open detached GTK picker window (needs phpvm-gui)"
     echo -e "  phpvm --self-update [URL] [REF]  Pull latest from git and re-run installer"
@@ -1239,7 +1391,12 @@ draw_menu() {
     fi
 
     echo ""
-    echo -e "  ${DIM}↑/↓  navigate   Enter  select   p  set-project   q  quit${NC}"
+    if [[ "$tui_wrap" == "true" ]]; then
+        echo -e "  ${DIM}↑/↓  navigate   Enter  pin this shell   g  global   p  project   q  quit${NC}"
+    else
+        echo -e "  ${DIM}↑/↓  navigate   Enter  global switch   p  project   q  quit${NC}"
+        echo -e "  ${DIM}(enable ${BOLD}phpvm --enable-hook${NC}${DIM} for per-shell pinning on Enter)${NC}"
+    fi
     echo ""
     echo -e "  ${DIM}────────────────────────────────────────${NC}"
     echo ""
@@ -1371,6 +1528,17 @@ tui_main() {
         fi
     done
 
+    # When launched through the shell wrapper, stdout is captured by `eval` (not a
+    # tty). Save that captured fd as 4 for the final `export` line, then point fd 1
+    # at the terminal so every draw call below works unchanged. fzf uses the same
+    # split: UI to the tty, result to stdout.
+    tui_wrap=false
+    if [[ ! -t 1 ]] && { : >/dev/tty; } 2>/dev/null; then
+        tui_wrap=true
+        exec 4>&1
+        exec 1>/dev/tty
+    fi
+
     tput civis
     trap 'tput cnorm; tput rmcup; exit 0' EXIT INT TERM
 
@@ -1397,6 +1565,30 @@ tui_main() {
                 [[ "$selected_index" -ge "${#versions[@]}" ]] && selected_index=0
                 ;;
             '')
+                if [[ "$tui_wrap" == "true" ]]; then
+                    # pin this terminal: emit the assignment on the saved fd (the
+                    # wrapper's eval/source applies it once the TUI exits), then
+                    # leave. fish wrapper sets PHPVM_SHELL_SYNTAX so we emit its
+                    # syntax instead of POSIX export.
+                    local _label _v
+                    _label="${versions[$selected_index]##*/}"
+                    _v=$(normalize_version "$_label" || echo "${_label#php}")
+                    if [[ "${PHPVM_SHELL_SYNTAX:-}" == "fish" ]]; then
+                        echo "set -gx PHPVM_SHELL_VERSION ${_v}" >&4
+                    else
+                        echo "export PHPVM_SHELL_VERSION=${_v}" >&4
+                    fi
+                    break
+                else
+                    switch_version_tui "${versions[$selected_index]}"
+                    mapfile -t versions < <(get_php_versions)
+                    current_php=$(get_current_php)
+                    tput civis
+                    tput smcup
+                    clear
+                fi
+                ;;
+            g | G)
                 switch_version_tui "${versions[$selected_index]}"
                 mapfile -t versions < <(get_php_versions)
                 current_php=$(get_current_php)
@@ -1433,8 +1625,14 @@ case "$CMD" in
     -c | --current)
         cmd_current
         ;;
-    -s | --set)
-        cmd_set "${1:-}"
+    -s | --set | global)
+        cmd_global "${1:-}"
+        ;;
+    shell)
+        cmd_shell "${1:-}"
+        ;;
+    sh-shell)
+        cmd_sh_shell "$@"
         ;;
     -a | --auto)
         QUIET=false
@@ -1450,8 +1648,8 @@ case "$CMD" in
         done
         cmd_auto "$QUIET" "$PRINT_ONLY" "$DIR"
         ;;
-    -p | --set-project)
-        cmd_set_project "${1:-}"
+    -p | --set-project | local)
+        cmd_local "${1:-}"
         ;;
     install)
         cmd_install "$@"
