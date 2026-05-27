@@ -130,6 +130,11 @@ Other distros aren't supported: install PHP with your own package manager and ph
 
 ## Per-shell switching
 
+<div>
+  <img src="assets/readme/per-shell.png" alt="phpvm per-shell switching: two terminals running PHP 8.2 and 8.3 at the same time, no sudo" width="760"/>
+  <p><em>Two terminals, two PHP versions, no sudo.</em></p>
+</div>
+
 This is the everyday switch, and it's the default. `phpvm shell 8.2` changes PHP for **the current terminal only**, with no sudo and no effect on any other shell:
 
 ```bash

@@ -4,19 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>phpvm</title>
-    <meta name="description" content="A small PHP version manager for Linux. Install, switch, and pin PHP per-terminal or per-project, with a TUI, tray app, and cd-hook." />
+    <meta name="description" content="A small PHP version manager for Linux. Switch PHP per-terminal with no sudo, pin it per-project, and drive it from a TUI, tray app, or cd-hook." />
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://rijverse.github.io/phpvm/" />
     <meta property="og:title" content="phpvm - PHP version manager for Linux" />
-    <meta property="og:description" content="A small PHP version manager for Linux. Install, switch, and pin PHP per-terminal or per-project, with a TUI, tray app, and cd-hook." />
+    <meta property="og:description" content="A small PHP version manager for Linux. Switch PHP per-terminal with no sudo, pin it per-project, and drive it from a TUI, tray app, or cd-hook." />
     <meta property="og:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="phpvm - PHP version manager for Linux" />
-    <meta name="twitter:description" content="A small PHP version manager for Linux. Install, switch, and pin PHP per-terminal or per-project, with a TUI, tray app, and cd-hook." />
+    <meta name="twitter:description" content="A small PHP version manager for Linux. Switch PHP per-terminal with no sudo, pin it per-project, and drive it from a TUI, tray app, or cd-hook." />
     <meta name="twitter:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -332,6 +332,70 @@
             font-size: 11px;
         }
 
+        /* ----- per-shell terminal duo (CSS mockup, no screenshot) ----- */
+        .term-duo {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .term {
+            border-radius: 10px;
+            background: #0d0a1c;
+            border: 1px solid rgba(255,255,255,0.08);
+            box-shadow:
+                    0 18px 50px -20px rgba(0,0,0,0.55),
+                    0 0 0 1px rgba(255,255,255,0.04) inset;
+            overflow: hidden;
+            text-align: left;
+        }
+        .term .bar {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 14px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid rgba(255,255,255,0.06);
+            font-family: var(--mono); font-size: 11px;
+            color: rgba(255,255,255,0.5);
+        }
+        .term .bar .dots { display: flex; gap: 6px; }
+        .term .bar .dots i {
+            width: 9px; height: 9px; border-radius: 50%;
+            background: rgba(255,255,255,0.18);
+        }
+        .term .bar .path { letter-spacing: 0.02em; }
+        .term .body {
+            padding: 18px 18px 22px;
+            font-family: var(--mono); font-size: 13px; line-height: 1.7;
+            color: rgba(255,255,255,0.82);
+        }
+        .term .body .line { white-space: pre-wrap; }
+        .term .body .prompt { color: var(--accent); }
+        .term .body .cmd-txt { color: var(--paper); }
+        .term .body .ok { color: var(--ok); }
+        .term .body .muted2 { color: rgba(255,255,255,0.45); }
+        .term .body .ver {
+            display: inline-block;
+            margin-top: 8px;
+            padding: 4px 10px;
+            border-radius: 6px;
+            color: var(--paper);
+            background: rgba(138,118,214,0.16);
+            animation: verPulse 2.4s ease-in-out infinite;
+        }
+        @keyframes verPulse {
+            0%, 100% {
+                box-shadow:
+                        0 0 0 1.5px var(--accent),
+                        0 0 0 3px rgba(138,118,214,0.10),
+                        0 0 18px 2px rgba(138,118,214,0.30);
+            }
+            50% {
+                box-shadow:
+                        0 0 0 2px var(--accent),
+                        0 0 0 7px rgba(138,118,214,0.26),
+                        0 0 36px 8px rgba(138,118,214,0.70);
+            }
+        }
+
         /* ----- bottom: tagline ----- */
         .bottom {
             position: relative; z-index: 2;
@@ -388,6 +452,8 @@
             .callout, .annot-below { display: none; }
             .highlight { box-shadow: 0 0 0 2px var(--accent), 0 0 24px 4px rgba(138,118,214,0.4); animation: none; }
             .caption-strip { flex-direction: column; align-items: flex-start; gap: 6px; }
+            .term-duo { grid-template-columns: 1fr; gap: 14px; }
+            .term .body .ver { box-shadow: 0 0 0 1.5px var(--accent), 0 0 22px 4px rgba(138,118,214,0.4); animation: none; }
         }
     </style>
 </head>
@@ -396,8 +462,8 @@
 <div class="page-head">
     <div>
         <div class="kicker">phpvm</div>
-        <h1>Four feature spotlights</h1>
-        <p>Taskbar indicator, Tray menu, Full GUI window, and TUI picker. Each one rings the bit that shows the active PHP version.</p>
+        <h1>Five feature spotlights</h1>
+        <p>Per-shell switching, the taskbar indicator, tray menu, full GUI window, and TUI picker. Each one rings the part that shows which PHP is in play.</p>
     </div>
     <div class="head-links">
         <a class="workspace-link" href="https://github.com/rijverse" target="_blank" rel="noopener">
@@ -418,11 +484,84 @@
 <div class="heroes">
 
     <!-- ============================================== -->
-    <!-- 01 TASKBAR INDICATOR                            -->
+    <!-- 01 PER-SHELL SWITCHING                          -->
     <!-- ============================================== -->
-    <section data-screen-label="01 Taskbar indicator">
+    <section data-screen-label="01 Per-shell switching">
         <div class="section-head">
             <span class="num">01</span>
+            <span class="ttl">Per-shell switching</span>
+            <span class="desc">Two terminals, two PHP versions, no sudo.</span>
+        </div>
+        <div class="stage">
+            <div class="hero" style="height: 680px;">
+                <div class="top">
+                    <div class="brand">
+                        <div class="mark"><img src="assets/phpvm.svg" alt="phpvm" /></div>
+                        <div class="name">php<span class="v">vm</span></div>
+                        <div class="sep"></div>
+                        <div class="tag">// per-shell switching · the everyday default</div>
+                    </div>
+                    <div class="meta">
+                        <span class="pill feature">no sudo</span>
+                        <span class="pill">bash · zsh · fish</span>
+                        <span class="pill">v2.5.0</span>
+                    </div>
+                </div>
+                <div class="center">
+                    <div class="shot-card" style="max-width: 1040px;">
+                        <div class="label-row">
+                            <span>two terminals · same machine</span>
+                            <span class="dots"><i></i><i></i><i></i></span>
+                        </div>
+                        <div class="term-duo">
+                            <div class="term">
+                                <div class="bar">
+                                    <span class="dots"><i></i><i></i><i></i></span>
+                                    <span class="path">~/laravel9-app</span>
+                                </div>
+                                <div class="body">
+                                    <div class="line"><span class="prompt">$</span> <span class="cmd-txt">phpvm shell 8.2</span></div>
+                                    <div class="line"><span class="ok">✓</span> <span class="muted2">shell pinned to PHP 8.2</span></div>
+                                    <div class="line"><span class="prompt">$</span> <span class="cmd-txt">php -v</span></div>
+                                    <div class="line"><span class="ver">PHP 8.2.28 (cli)</span></div>
+                                </div>
+                            </div>
+                            <div class="term">
+                                <div class="bar">
+                                    <span class="dots"><i></i><i></i><i></i></span>
+                                    <span class="path">~/symfony-app</span>
+                                </div>
+                                <div class="body">
+                                    <div class="line"><span class="prompt">$</span> <span class="cmd-txt">phpvm shell 8.3</span></div>
+                                    <div class="line"><span class="ok">✓</span> <span class="muted2">shell pinned to PHP 8.3</span></div>
+                                    <div class="line"><span class="prompt">$</span> <span class="cmd-txt">php -v</span></div>
+                                    <div class="line"><span class="ver">PHP 8.3.21 (cli)</span></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="caption-strip">
+                            <span>a <code>php</code> shim on your PATH reads <code>PHPVM_SHELL_VERSION</code></span>
+                            <span>resolution: shell pin &gt; project &gt; global</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="bottom">
+                    <h2>Two terminals. <em>Two PHP versions. No sudo.</em></h2>
+                    <div class="right-col">
+                        <div class="line">pin this terminal</div>
+                        <div class="cmd"><span class="p">$</span> phpvm shell 8.2</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ============================================== -->
+    <!-- 02 TASKBAR INDICATOR                            -->
+    <!-- ============================================== -->
+    <section data-screen-label="02 Taskbar indicator">
+        <div class="section-head">
+            <span class="num">02</span>
             <span class="ttl">Taskbar indicator</span>
             <span class="desc">Tray shows the live PHP version.</span>
         </div>
@@ -480,11 +619,11 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- 02 TRAY MENU                                    -->
+    <!-- 03 TRAY MENU                                    -->
     <!-- ============================================== -->
-    <section data-screen-label="02 Tray menu">
+    <section data-screen-label="03 Tray menu">
         <div class="section-head">
-            <span class="num">02</span>
+            <span class="num">03</span>
             <span class="ttl">Tray menu</span>
             <span class="desc">One click switching from the panel.</span>
         </div>
@@ -545,11 +684,11 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- 03 GUI WINDOW                                   -->
+    <!-- 04 GUI WINDOW                                   -->
     <!-- ============================================== -->
-    <section data-screen-label="03 GUI window">
+    <section data-screen-label="04 GUI window">
         <div class="section-head">
-            <span class="num">03</span>
+            <span class="num">04</span>
             <span class="ttl">GUI window</span>
             <span class="desc">Every installed PHP with per-version badges.</span>
         </div>
@@ -610,11 +749,11 @@
     </section>
 
     <!-- ============================================== -->
-    <!-- 04 TUI                                          -->
+    <!-- 05 TUI                                          -->
     <!-- ============================================== -->
-    <section data-screen-label="04 TUI">
+    <section data-screen-label="05 TUI">
         <div class="section-head">
-            <span class="num">04</span>
+            <span class="num">05</span>
             <span class="ttl">Terminal UI</span>
             <span class="desc">Keyboard-driven picker. Enter pins the current shell.</span>
         </div>
