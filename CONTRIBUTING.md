@@ -1,6 +1,6 @@
 # Contributing
 
-Patches welcome. The core is intentionally simple — a bash script and a Python tray app, no build step.
+Patches welcome. The core is intentionally simple: a bash script and a Python tray app, no build step.
 
 ## Setup
 
@@ -29,7 +29,7 @@ Open an issue and include:
 - OS and bash version (`bash --version`)
 - Your registered PHP versions (`update-alternatives --list php`)
 - What you expected vs. what happened
-- Terminal emulator — some TUI rendering quirks are terminal-specific
+- Terminal emulator (some TUI rendering quirks are terminal-specific)
 
 ## Pull requests
 

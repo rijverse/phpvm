@@ -4,19 +4,19 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>phpvm</title>
-    <meta name="description" content="A small PHP version switcher for Linux. TUI, tray app, and a cd-hook that picks the right PHP for your project." />
+    <meta name="description" content="A small PHP version manager for Linux. Install, switch, and pin PHP per-terminal or per-project, with a TUI, tray app, and cd-hook." />
 
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://rijverse.github.io/phpvm/" />
-    <meta property="og:title" content="phpvm — PHP version manager for Linux" />
-    <meta property="og:description" content="A small PHP version switcher for Linux. TUI, tray app, and a cd-hook that picks the right PHP for your project." />
+    <meta property="og:title" content="phpvm - PHP version manager for Linux" />
+    <meta property="og:description" content="A small PHP version manager for Linux. Install, switch, and pin PHP per-terminal or per-project, with a TUI, tray app, and cd-hook." />
     <meta property="og:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
     <meta property="og:image:width" content="1280" />
     <meta property="og:image:height" content="640" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="phpvm — PHP version manager for Linux" />
-    <meta name="twitter:description" content="A small PHP version switcher for Linux. TUI, tray app, and a cd-hook that picks the right PHP for your project." />
+    <meta name="twitter:title" content="phpvm - PHP version manager for Linux" />
+    <meta name="twitter:description" content="A small PHP version manager for Linux. Install, switch, and pin PHP per-terminal or per-project, with a TUI, tray app, and cd-hook." />
     <meta name="twitter:image" content="https://rijverse.github.io/phpvm/assets/showcase/social-preview.png" />
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -437,7 +437,7 @@
                         <div class="mark"><img src="assets/phpvm.svg" alt="phpvm" /></div>
                         <div class="name">php<span class="v">vm</span></div>
                         <div class="sep"></div>
-                        <div class="tag">// a small PHP version switcher for linux</div>
+                        <div class="tag">// a small PHP version manager for linux</div>
                     </div>
                     <div class="meta">
                         <span class="pill feature">tray indicator</span>
@@ -463,8 +463,8 @@
                             </div>
                         </div>
                         <div class="caption-strip">
-                            <span>tray indicator reflects <code>phpvm --auto</code> on every <code>cd</code></span>
-                            <span>no shell reload required</span>
+                            <span>tray indicator reflects the system-wide (global) PHP</span>
+                            <span>updates when you run <code>phpvm global</code></span>
                         </div>
                     </div>
                 </div>
@@ -537,7 +537,7 @@
                     <h2>Switch PHP from the panel. <em>Without leaving your work.</em></h2>
                     <div class="right-col">
                         <div class="line">launch tray</div>
-                        <div class="cmd"><span class="p">$</span> phpvm-gui --tray</div>
+                        <div class="cmd"><span class="p">$</span> phpvm-gui</div>
                     </div>
                 </div>
             </div>
@@ -616,7 +616,7 @@
         <div class="section-head">
             <span class="num">04</span>
             <span class="ttl">Terminal UI</span>
-            <span class="desc">Keyboard-driven picker, right where you live.</span>
+            <span class="desc">Keyboard-driven picker. Enter pins the current shell.</span>
         </div>
         <div class="stage">
             <div class="hero" style="
@@ -654,17 +654,17 @@
                             </div>
                             <div class="annot-below">
                                 <div class="leader"></div>
-                                <div class="text"><span class="dot"></span>↑/↓ navigate · enter to switch</div>
+                                <div class="text"><span class="dot"></span>↑/↓ navigate · enter pins this shell</div>
                             </div>
                         </div>
                         <div class="caption-strip">
-                            <span><code>p</code> pin as project version · <code>q</code> bail</span>
-                            <span>uses <code>update-alternatives</code> under the hood</span>
+                            <span><code>g</code> global · <code>p</code> project · <code>q</code> quit</span>
+                            <span>a <code>php</code> shim on your PATH, no sudo</span>
                         </div>
                     </div>
                 </div>
                 <div class="bottom">
-                    <h2>A picker that <em>lives in your terminal.</em></h2>
+                    <h2>Switch PHP for <em>just this terminal.</em></h2>
                     <div class="right-col">
                         <div class="line">just run it</div>
                         <div class="cmd"><span class="p">$</span> phpvm</div>

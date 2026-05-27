@@ -4,7 +4,7 @@
 
 # phpvm
 
-A small PHP version switcher for Linux. TUI in the terminal, optional system tray app, and a `cd`-hook that picks the right PHP for the project you just stepped into.
+A small PHP version manager for Linux. TUI in the terminal, optional system tray app, per-shell switching, and a `cd`-hook that picks the right PHP for the project you just stepped into.
 
 If you've been juggling `update-alternatives --set php` by hand every time you switch between a Laravel 9 app on 8.1 and a fresh Symfony repo on 8.3, this is for you.
 
@@ -26,9 +26,11 @@ If you've been juggling `update-alternatives --set php` by hand every time you s
 - A tray icon (and a separate GTK window if you'd rather not live in the panel) with per-version badges: which SAPIs are available, whether xdebug is loaded, whether FPM is running, whether the version is EOL.
 - `.php-version` (or `composer.json`'s `require.php`) drives a per-project version. Walks up the tree like `nvm` does.
 - A `cd`-hook for bash / zsh / fish that runs `phpvm --auto` so the right PHP is loaded by the time the prompt comes back.
+- Per-shell switching: `phpvm shell 8.2` pins a version for the current terminal only via a `php` shim on `PATH`. Two terminals can run two PHP versions at once, no sudo.
+- `phpvm install <ver>` adds a new PHP version straight from the upstream repo (Ondřej Surý's PPA on Ubuntu, deb.sury.org on Debian) without hand-running `apt install`.
 - An installer that asks the obvious questions (CLI? GUI? wire up the shell hook? passwordless sudo?) and an uninstaller that backs up your shell rc before touching it.
 
-Under the hood it's just `update-alternatives --set php`. Nothing exotic. The whole point is that you stop typing that command.
+Global switches use `update-alternatives --set php`, installs drive the upstream PPA, and per-shell pins use a tiny `php` shim on your `PATH`. Nothing exotic.
 
 ## Installing
 
