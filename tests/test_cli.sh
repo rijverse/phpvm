@@ -88,6 +88,61 @@ out=$(PHPVM_OS_RELEASE="$OSR_DIR/debian" bash "$PHPVM" install 8.2 --print 2>&1)
 [[ $rc -eq 0 && "$out" == *"packages.sury.org"* && "$out" == *"bookworm"* && "$out" == *"php8.2-cli"* ]] \
     && ok "debian --print shows sury repo pinned to codename" || fail "debian --print wrong (rc=${rc}): ${out}"
 
+sep "sh-shell --unset (POSIX)"
+out=$(bash "$PHPVM" sh-shell --unset 2>&1)
+[[ "$out" == "unset PHPVM_SHELL_VERSION" ]] \
+    && ok "sh-shell --unset emits POSIX unset" || fail "sh-shell --unset wrong: ${out}"
+
+sep "sh-shell --unset --fish"
+out=$(bash "$PHPVM" sh-shell --unset --fish 2>&1)
+[[ "$out" == "set -e PHPVM_SHELL_VERSION" ]] \
+    && ok "sh-shell --unset --fish emits fish syntax" || fail "sh-shell --unset --fish wrong: ${out}"
+
+sep "sh-shell (no version, emits a failing snippet not a crash)"
+out=$(bash "$PHPVM" sh-shell 2>&1)
+[[ "$out" == *"false"* && "$out" == *"usage"* ]] \
+    && ok "sh-shell with no version emits usage + false" || fail "sh-shell no-arg wrong: ${out}"
+
+sep "sh-shell (uninstalled version, emits a failing snippet)"
+out=$(bash "$PHPVM" sh-shell 9.99 2>&1)
+[[ "$out" == *"not installed"* && "$out" == *"false"* ]] \
+    && ok "sh-shell rejects an uninstalled version via the eval'd snippet" || fail "sh-shell 9.99 wrong: ${out}"
+
+sep "sh-shell (installed version, emits export)"
+inst=$(update-alternatives --list php 2>/dev/null | grep -oE 'php[0-9]+\.[0-9]+' | head -1 | sed 's/php//')
+if [[ -n "$inst" ]]; then
+    out=$(bash "$PHPVM" sh-shell "$inst" 2>&1)
+    [[ "$out" == "export PHPVM_SHELL_VERSION=${inst}" ]] \
+        && ok "sh-shell ${inst} emits POSIX export" || fail "sh-shell ${inst} wrong: ${out}"
+    out=$(bash "$PHPVM" sh-shell "$inst" --fish 2>&1)
+    [[ "$out" == "set -gx PHPVM_SHELL_VERSION ${inst}" ]] \
+        && ok "sh-shell ${inst} --fish emits fish set -gx" || fail "sh-shell ${inst} --fish wrong: ${out}"
+else
+    ok "sh-shell success path skipped (no PHP registered in update-alternatives)"
+fi
+
+sep "global (no version arg, expect usage error)"
+out=$(bash "$PHPVM" global 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"Usage"* ]] \
+    && ok "global without arg exits non-zero with usage" || fail "global no-arg wrong (rc=${rc}): ${out}"
+
+sep "local (no version arg, expect usage error)"
+out=$(bash "$PHPVM" local 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"Usage"* ]] \
+    && ok "local without arg exits non-zero with usage" || fail "local no-arg wrong (rc=${rc}): ${out}"
+
+sep "local writes .php-version (alias of --set-project)"
+tmpd=$(mktemp -d)
+( cd "$tmpd" && bash "$PHPVM" local 8.1 >/dev/null 2>&1 && [[ "$(cat .php-version)" == "8.1" ]] )
+rc=$?
+rm -rf "$tmpd"
+[[ $rc -eq 0 ]] && ok "local 8.1 writes .php-version" || fail "local did not write .php-version (rc=${rc})"
+
+sep "shell (direct invoke without wrapper, guides to --enable-hook)"
+out=$(bash "$PHPVM" shell 8.3 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"enable-hook"* ]] \
+    && ok "direct shell invoke points at --enable-hook" || fail "shell direct invoke wrong (rc=${rc}): ${out}"
+
 sep "bash version guard"
 guard=$(grep -c "BASH_VERSINFO" "$PHPVM") 2>/dev/null || guard=0
 [[ "$guard" -ge 1 ]] \
