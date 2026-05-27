@@ -1,14 +1,45 @@
-# bash auto switch hook
+# bash hook: phpvm shell integration + auto-switch on cd
 # Add to ~/.bashrc:
 #   source /etc/phpvm/php-auto.bash    (system install)
 #   source ~/.phpvm/php-auto.bash      (user install)
 
+# locate this hook's own directory so we can find the shim dir next to it
+_PHPVM_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+
+# put the shim dir on PATH once, ahead of /usr/bin, so `php` hits our shim
+case ":${PATH}:" in
+    *":${_PHPVM_HOOK_DIR}/shims:"*) ;;
+    *) [ -d "${_PHPVM_HOOK_DIR}/shims" ] && export PATH="${_PHPVM_HOOK_DIR}/shims:${PATH}" ;;
+esac
+
+# wrapper: `phpvm shell` and the bare TUI must change the current shell, so they
+# run through eval; everything else goes straight to the binary.
+phpvm() {
+    case "${1:-}" in
+        shell)
+            shift
+            eval "$(command phpvm sh-shell "$@")"
+            ;;
+        "")
+            eval "$(command phpvm)"
+            ;;
+        *)
+            command phpvm "$@"
+            ;;
+    esac
+}
+
+# cd-hook: reflect the project's PHP into PHPVM_AUTO_VERSION (the shim reads it).
+# No sudo, no global switch. An explicit `phpvm shell` pin wins, so skip then.
 _php_switcher_auto() {
-    command -v phpvm &>/dev/null || return
-    if [[ -n "${PHPVM_DEBUG:-}" ]]; then
-        phpvm --auto --quiet
+    command -v phpvm >/dev/null 2>&1 || return
+    [ -n "${PHPVM_SHELL_VERSION:-}" ] && return
+    local v
+    v="$(command phpvm --auto --print 2>/dev/null)"
+    if [ -n "$v" ]; then
+        export PHPVM_AUTO_VERSION="$v"
     else
-        phpvm --auto --quiet 2>/dev/null
+        unset PHPVM_AUTO_VERSION
     fi
 }
 
