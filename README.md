@@ -87,6 +87,7 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 | `phpvm --list` | Lists installed PHP versions |
 | `phpvm --current` | Prints whichever one is active |
 | `phpvm --set 8.2` | Switches globally to 8.2 |
+| `phpvm install 8.3` | Installs PHP 8.3 from Ondřej Surý's repo (see [Installing PHP versions](#installing-php-versions)) |
 | `phpvm --auto` | Reads `.php-version` / `composer.json` and switches |
 | `phpvm --auto --print [dir]` | Prints the resolved project PHP version without switching |
 | `phpvm --set-project 8.2` | Writes `.php-version` here |
@@ -100,6 +101,28 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 | `phpvm --help` | Everything else |
 
 Vim users get <kbd>k</kbd>/<kbd>j</kbd> too.
+
+## Installing PHP versions
+
+`phpvm install` drives the upstream PHP repos so you don't have to add a PPA and `apt install` by hand:
+
+```bash
+phpvm install 8.3            # cli + common + fpm
+phpvm install 8.3 --minimal  # cli + common, no fpm
+phpvm install 8.3 --with curl,mbstring,xml   # add extensions
+phpvm install 8.3 --use      # install, then switch to it
+phpvm install latest         # highest version the repo offers
+phpvm install 8.3 --print    # dry-run: show the repo + packages, touch nothing
+```
+
+It picks the repo from your distro:
+
+- **Ubuntu** (and derivatives like Mint, Pop!_OS): Ondřej Surý's PPA, `ppa:ondrej/php`.
+- **Debian**: the [deb.sury.org](https://deb.sury.org) repo, keyring under `/etc/apt/keyrings/` and a `[signed-by=...]` source list pinned to your release.
+
+Versions are `X.Y` (or `latest`); patch levels like `8.2.13` are rejected. `apt` runs under a normal `sudo` password prompt. `install` never touches the passwordless sudoers rule, which stays scoped to `update-alternatives --set`. After installing it offers to switch (or pass `--use` / `--yes` for non-interactive runs).
+
+Other distros aren't supported: install PHP with your own package manager and phpvm will pick it up via `update-alternatives`.
 
 ## The GUI
 
@@ -246,7 +269,6 @@ Shell RCs are backed up as `<file>.phpvm-backup` before any edits. Running under
 
 A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some are out of scope for now.
 
-- **Installing PHP itself**: for now you still need `apt install php8.2 php8.2-fpm ...` (or Ondřej Surý's PPA). `phpvm install <ver>` is on the roadmap.
 - **Per-shell switching**: switches are currently system-wide via `update-alternatives`, so two shells on two versions at once isn't supported yet. A shim-based `phpvm shell <ver>` is on the roadmap.
 - **Distros without `update-alternatives`**: Arch, Fedora, RHEL, openSUSE aren't supported. Adding a backend is welcome as a contribution.
 - **Web server config**: Apache/Nginx still point at whatever socket or module you wired up. FPM restart is per-version and assumes `systemctl restart phpX.Y-fpm` style unit names.
@@ -257,7 +279,7 @@ A few things phpvm doesn't handle yet. Some are on the [Roadmap](#roadmap), some
 
 Roughly in priority order. The top two are planned in detail in [ROADMAP.md](ROADMAP.md). Open an issue if you want to push one up the stack or claim one.
 
-- [ ] **`phpvm install <ver>`** (planned, v2.4.0): drive Ondřej Surý's PPA (Ubuntu) or Surý repo (Debian) under the hood so you don't have to `apt install` by hand. `phpvm install 8.3`, `phpvm install latest`.
+- [x] **`phpvm install <ver>`** (shipped in v2.4.0): drives Ondřej Surý's PPA (Ubuntu) or Surý repo (Debian) under the hood so you don't have to `apt install` by hand. `phpvm install 8.3`, `phpvm install latest`. See [Installing PHP versions](#installing-php-versions).
 - [ ] **Per-shell switching, as the new default** (planned, v2.5.0): `phpvm shell 8.2` flips PHP for the current terminal only, via a `~/.phpvm/shims/php` shim on `$PATH`. Two shells on two versions at once, no sudo. Global switching stays available as `phpvm global` (today's `--set`).
 - [ ] **Extension manager**: `phpvm ext install xdebug redis imagick` per version, with the matching `php<ver>-<ext>` packages and ini wiring. None of the existing PHP version managers do this well.
 - [ ] **`phpvm exec <ver> <cmd>`**: run a one-off in a specific version without switching, like `nvm exec`. Handy for CI and quick sanity checks.

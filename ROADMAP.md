@@ -6,7 +6,7 @@ idea-stage notes so the whole picture lives in one place.
 
 ## Status overview
 
-- [ ] **1. `phpvm install <ver>`** (planned, v2.4.0)
+- [x] **1. `phpvm install <ver>`** (shipped, v2.4.0)
 - [ ] **2. Per-shell switching, as the new default** (planned, v2.5.0)
 - [ ] **3. Extension manager** (idea)
 - [ ] **4. `phpvm exec <ver> <cmd>`** (idea)
@@ -19,10 +19,12 @@ so the order is flexible.
 
 ---
 
-## 1. `phpvm install <ver>` (v2.4.0)
+## 1. `phpvm install <ver>` (v2.4.0, shipped)
 
 Drive the upstream PHP repos so users stop hand-running `apt install`. Independent
-of the per-shell inversion, lower risk, roadmap priority #1.
+of the per-shell inversion, lower risk, roadmap priority #1. The spec below is what
+shipped; `cmd_install` and its helpers (`detect_distro_repo`, `ensure_php_repo`,
+`_assemble_packages`) live in `phpvm.sh`.
 
 ### Repo / distro detection
 

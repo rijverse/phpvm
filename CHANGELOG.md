@@ -3,6 +3,28 @@
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 is [SemVer](https://semver.org/).
 
+## [2.4.0] - 2026-05-27
+
+### Added
+
+- `phpvm install <ver>` installs a PHP minor version from the upstream repo so you no longer hand-run `apt install`.
+  Detects the distro from `/etc/os-release`: Ubuntu (and derivatives carrying `ubuntu` in `ID_LIKE`, e.g. Mint, Pop!_OS)
+  use Ondřej Surý's `ppa:ondrej/php`; Debian uses the deb.sury.org repo with a keyring under `/etc/apt/keyrings/sury-php.gpg`
+  and a `[signed-by=...]` source list pinned to `$VERSION_CODENAME`. Other distros get a clean error. Default package set is
+  `phpX.Y-cli phpX.Y-common phpX.Y-fpm`; `--minimal` drops fpm and `--with curl,mbstring` appends `phpX.Y-<ext>`. Accepts
+  explicit `X.Y` or `latest` (resolved via `apt-cache` once the repo is configured); patch levels like `8.2.13` are rejected.
+  Idempotent: reports and exits if the version is already present. After installing it defensively registers the `php`
+  alternative if the package didn't, then offers to switch (`--use` auto-switches). `--print` is a dependency-free, CI-safe
+  dry-run that prints the repo and package list without touching the system.
+- `phpvm --help` documents the new `install` verb and its flags.
+
+### Security
+
+- `phpvm install` keeps `apt`/`add-apt-repository` under a normal password-gated `sudo`. The passwordless sudoers rule stays
+  scoped to `update-alternatives --set` only; install never widens it.
+
+---
+
 ## [2.3.3] - 2026-05-27
 
 ### Changed

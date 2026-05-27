@@ -1,12 +1,12 @@
 #!/bin/bash
-# phpvm - PHP Version Manager v2.3.3
+# phpvm - PHP Version Manager v2.4.0
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
     echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
     exit 1
 fi
 
-VERSION="2.3.3"
+VERSION="2.4.0"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -62,6 +62,42 @@ normalize_version() {
         return 0
     fi
     return 1
+}
+
+# true when a controlling terminal is reachable, even under `curl | sudo bash`
+# (the pipe replaces stdin, so a bare `-t 0` test is not enough, same trick
+# install.sh uses).
+_tty_interactive() {
+    [[ -t 0 ]] || { true < /dev/tty; } 2>/dev/null
+}
+
+# Map /etc/os-release to the upstream PHP repo we drive. Echoes "<kind> <codename>"
+# where kind is ubuntu | debian | unsupported. PHPVM_OS_RELEASE overrides the path
+# (test seam). Ubuntu is checked first so Ubuntu derivatives (Mint, Pop!_OS, etc.),
+# which carry `ubuntu` in ID_LIKE, take the PPA path.
+detect_distro_repo() {
+    local osr="${PHPVM_OS_RELEASE:-/etc/os-release}"
+    if [[ ! -r "$osr" ]]; then
+        echo "unsupported "
+        return 0
+    fi
+    (
+        ID=""; ID_LIKE=""; VERSION_CODENAME=""
+        # shellcheck disable=SC1090
+        . "$osr" 2>/dev/null
+        local kind="unsupported"
+        if [[ "$ID" == "ubuntu" || " ${ID_LIKE} " == *" ubuntu "* ]]; then
+            kind="ubuntu"
+        elif [[ "$ID" == "debian" || " ${ID_LIKE} " == *" debian "* ]]; then
+            kind="debian"
+        fi
+        echo "${kind} ${VERSION_CODENAME}"
+    )
+}
+
+# true when apt knows about the package (repo already provides it)
+apt_pkg_available() {
+    apt-cache show "$1" 2>/dev/null | grep -q .
 }
 
 # project detection
@@ -361,6 +397,226 @@ cmd_set_project() {
 
     echo "$ver" > .php-version
     echo -e "${GREEN}✓${NC} Created ${BOLD}.php-version${NC} → ${CYAN}${ver}${NC}"
+}
+
+# install
+
+# Configure the upstream PHP repo for $ver if apt can't already see php$ver-cli.
+# apt and add-apt-repository run under plain sudo (password-gated). The narrow
+# NOPASSWD sudoers rule is for `update-alternatives --set` only and must not grow.
+ensure_php_repo() {
+    local kind="$1" codename="$2" ver="$3"
+
+    # empty ver = caller needs the repo configured unconditionally (e.g. to
+    # resolve `latest`); otherwise skip when apt can already see php$ver-cli.
+    if [[ -n "$ver" ]] && apt_pkg_available "php${ver}-cli"; then
+        echo -e "  ${DIM}Repo already provides php${ver}, skipping repo setup.${NC}"
+        return 0
+    fi
+
+    case "$kind" in
+        ubuntu)
+            echo -e "  ${BLUE}Adding${NC} ${BOLD}ppa:ondrej/php${NC}"
+            if ! command -v add-apt-repository &>/dev/null; then
+                sudo apt-get install -y software-properties-common || return 1
+            fi
+            sudo add-apt-repository -y ppa:ondrej/php || return 1
+            ;;
+        debian)
+            local keyring="/etc/apt/keyrings/sury-php.gpg"
+            local list="/etc/apt/sources.list.d/sury-php.list"
+            echo -e "  ${BLUE}Adding${NC} ${BOLD}deb.sury.org${NC} repo (${codename})"
+            sudo apt-get install -y ca-certificates curl || return 1
+            sudo install -d -m 0755 /etc/apt/keyrings || return 1
+            curl -fsSL https://packages.sury.org/php/apt.gpg | sudo tee "$keyring" >/dev/null || return 1
+            echo "deb [signed-by=${keyring}] https://packages.sury.org/php/ ${codename} main" \
+                | sudo tee "$list" >/dev/null || return 1
+            ;;
+        *)
+            return 1
+            ;;
+    esac
+
+    sudo apt-get update
+}
+
+cmd_install() {
+    local target="" with_exts="" minimal=false assume_yes=false auto_use=false print_only=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --minimal)   minimal=true ;;
+            --with)      shift; with_exts="$1" ;;
+            --with=*)    with_exts="${1#--with=}" ;;
+            -y|--yes)    assume_yes=true ;;
+            --use)       auto_use=true ;;
+            --print|--dry-run) print_only=true ;;
+            -*)
+                echo -e "${RED}Unknown flag: $1${NC}" >&2
+                echo -e "${DIM}Run: phpvm --help${NC}" >&2
+                exit 1
+                ;;
+            *)           target="$1" ;;
+        esac
+        shift
+    done
+
+    if [[ -z "$target" ]]; then
+        echo -e "${RED}Usage: phpvm install <version> [--minimal] [--with ext,ext] [--use] [--yes] [--print]${NC}" >&2
+        echo -e "${DIM}Example: phpvm install 8.3${NC}" >&2
+        exit 1
+    fi
+
+    # version resolution: explicit X.Y or `latest`. patch-level is rejected.
+    local ver=""
+    if [[ "$target" == "latest" ]]; then
+        ver="latest"
+    elif [[ "$target" =~ ^[0-9]+\.[0-9]+$ ]]; then
+        ver="$target"
+    elif [[ "$target" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        echo -e "${RED}phpvm installs minor versions (X.Y), not patch levels.${NC}" >&2
+        echo -e "${DIM}For ${target}, drop the patch: phpvm install ${target%.*}${NC}" >&2
+        exit 1
+    else
+        echo -e "${RED}Invalid version: ${target}${NC}" >&2
+        echo -e "${DIM}Expected X.Y (e.g. 8.3) or 'latest'.${NC}" >&2
+        exit 1
+    fi
+
+    # distro / repo detection (needed for both dry-run and real install)
+    local kind codename
+    read -r kind codename < <(detect_distro_repo)
+    if [[ "$kind" == "unsupported" ]]; then
+        echo -e "${RED}phpvm install supports Debian and Ubuntu (and derivatives) only.${NC}" >&2
+        echo -e "${DIM}On other distros, install PHP with your package manager, then phpvm will pick it up.${NC}" >&2
+        exit 1
+    fi
+
+    local repo_desc
+    case "$kind" in
+        ubuntu) repo_desc="ppa:ondrej/php" ;;
+        debian) repo_desc="deb https://packages.sury.org/php/ ${codename} main" ;;
+    esac
+
+    # dry-run: report repo + packages without touching the system. host-agnostic,
+    # CI-safe, no apt-get required.
+    if [[ "$print_only" == "true" ]]; then
+        echo "repo: ${repo_desc}"
+        if [[ "$ver" == "latest" ]]; then
+            echo "packages: (resolved to the highest php<X.Y>-cli after the repo is configured)"
+        else
+            local plist
+            plist=$(_assemble_packages "$ver" "$minimal" "$with_exts")
+            echo "packages: ${plist}"
+        fi
+        return 0
+    fi
+
+    if ! command -v apt-get &>/dev/null; then
+        echo -e "${RED}phpvm install needs apt-get (Debian/Ubuntu).${NC}" >&2
+        exit 1
+    fi
+
+    local is_latest=false
+    [[ "$ver" == "latest" ]] && is_latest=true
+
+    # idempotency for an explicit version (latest is re-checked once it resolves)
+    if [[ "$is_latest" != "true" ]] && { [[ -x "/usr/bin/php${ver}" ]] || get_php_versions | grep -qx "/usr/bin/php${ver}"; }; then
+        echo -e "${GREEN}✓${NC} PHP ${BOLD}${ver}${NC} is already installed."
+        echo -e "${DIM}Switch with: phpvm --set ${ver}    (per-project: phpvm --set-project ${ver})${NC}"
+        exit 0
+    fi
+
+    # confirm: nothing above this point has touched the system. `latest` can't
+    # list packages yet (needs the repo), so it confirms on the repo alone.
+    local packages=""
+    echo ""
+    if [[ "$is_latest" == "true" ]]; then
+        echo -e "  ${BOLD}Install the latest PHP${NC}"
+        echo -e "    ${DIM}repo:${NC}     ${repo_desc}"
+        echo -e "    ${DIM}version:${NC}  highest the repo offers (resolved after repo setup)"
+    else
+        packages=$(_assemble_packages "$ver" "$minimal" "$with_exts")
+        echo -e "  ${BOLD}Install PHP ${ver}${NC}"
+        echo -e "    ${DIM}repo:${NC}     ${repo_desc}"
+        echo -e "    ${DIM}packages:${NC} ${packages}"
+    fi
+    echo ""
+    if [[ "$assume_yes" != "true" ]]; then
+        if _tty_interactive; then
+            local ans
+            read -rp "  Proceed? [y/N] " ans < /dev/tty
+            [[ "$ans" =~ ^[Yy]$ ]] || { echo -e "${DIM}Cancelled.${NC}"; exit 0; }
+        else
+            echo -e "${RED}Refusing to install non-interactively without --yes.${NC}" >&2
+            exit 1
+        fi
+    fi
+
+    # configure the repo (empty ver forces config, needed to resolve `latest`)
+    local repo_ver="$ver"
+    [[ "$is_latest" == "true" ]] && repo_ver=""
+    if ! ensure_php_repo "$kind" "$codename" "$repo_ver"; then
+        echo -e "${RED}✗${NC} Failed to configure the PHP repo." >&2
+        exit 1
+    fi
+
+    if [[ "$is_latest" == "true" ]]; then
+        ver=$(apt-cache search --names-only '^php[0-9]+\.[0-9]+-cli$' 2>/dev/null \
+            | grep -oE 'php[0-9]+\.[0-9]+' | sed 's/^php//' | sort -V | tail -1)
+        if [[ -z "$ver" ]]; then
+            echo -e "${RED}Could not resolve 'latest' from the configured repos.${NC}" >&2
+            exit 1
+        fi
+        echo -e "  ${DIM}latest resolves to ${ver}${NC}"
+        if [[ -x "/usr/bin/php${ver}" ]] || get_php_versions | grep -qx "/usr/bin/php${ver}"; then
+            echo -e "${GREEN}✓${NC} PHP ${BOLD}${ver}${NC} (latest) is already installed."
+            exit 0
+        fi
+        packages=$(_assemble_packages "$ver" "$minimal" "$with_exts")
+    fi
+
+    # shellcheck disable=SC2086
+    if ! sudo apt-get install -y $packages; then
+        echo -e "${RED}✗${NC} apt-get install failed." >&2
+        exit 1
+    fi
+
+    # defensive register: Surý packages self-register the `php` alternative, but
+    # cover the case where they didn't. priority derived from the version (8.3 gives 83).
+    local bin="/usr/bin/php${ver}"
+    if [[ -x "$bin" ]] && ! get_php_versions | grep -qx "$bin"; then
+        local prio="${ver//./}"
+        sudo update-alternatives --install /usr/bin/php php "$bin" "$prio" >/dev/null 2>&1 || true
+    fi
+
+    echo -e "${GREEN}✓${NC} Installed PHP ${BOLD}${ver}${NC}"
+
+    # offer to switch
+    if [[ "$auto_use" == "true" ]]; then
+        do_switch "$bin"
+    elif _tty_interactive; then
+        local ans
+        read -rp "  Switch to PHP ${ver} now? [y/N] " ans < /dev/tty
+        [[ "$ans" =~ ^[Yy]$ ]] && do_switch "$bin"
+    else
+        echo -e "${DIM}Switch with: phpvm --set ${ver}${NC}"
+    fi
+}
+
+# build the apt package list for a version, honoring --minimal and --with
+_assemble_packages() {
+    local ver="$1" minimal="$2" with_exts="$3"
+    local pkgs="php${ver}-cli php${ver}-common"
+    [[ "$minimal" == "true" ]] || pkgs="${pkgs} php${ver}-fpm"
+    if [[ -n "$with_exts" ]]; then
+        local ext
+        IFS=', ' read -ra _exts <<< "$with_exts"
+        for ext in "${_exts[@]}"; do
+            [[ -n "$ext" ]] && pkgs="${pkgs} php${ver}-${ext}"
+        done
+    fi
+    echo "$pkgs"
 }
 
 detect_hook_dir() {
@@ -918,6 +1174,9 @@ cmd_help() {
     echo -e "  phpvm --list                 List installed PHP versions"
     echo -e "  phpvm --current              Show active PHP version"
     echo -e "  phpvm --set <version>        Switch to version (e.g. 8.2)"
+    echo -e "  phpvm install <version>      Install PHP via Ondřej Surý's repo (e.g. 8.3, latest)"
+    echo -e "    ${DIM}--minimal  drop -fpm    --with curl,mbstring  add extensions${NC}"
+    echo -e "    ${DIM}--use  switch after install    --yes  skip prompts    --print  dry-run${NC}"
     echo -e "  phpvm --auto [--quiet]       Auto-switch from .php-version / composer.json"
     echo -e "  phpvm --auto --print [dir]   Print resolved project PHP version (no switch)"
     echo -e "  phpvm --set-project <ver>    Write .php-version in current dir"
@@ -1193,6 +1452,9 @@ case "$CMD" in
         ;;
     -p | --set-project)
         cmd_set_project "${1:-}"
+        ;;
+    install)
+        cmd_install "$@"
         ;;
     --enable-hook)
         cmd_enable_hook "${1:-}"
