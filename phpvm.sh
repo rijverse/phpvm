@@ -339,6 +339,23 @@ cmd_current() {
     else
         echo -e "  ${DIM}global:${NC}  ${DIM}none${NC}"
     fi
+
+    # inactive-pin hint: a shell/project pin is set but `php` resolves to
+    # something other than the shim, so the pin has no effect in this terminal.
+    # Distinct from "no hook installed", here the hook exists but this shell
+    # never sourced it (common after a fresh install in an already-open shell).
+    if [[ -n "$shell_pin" || -n "$auto_pin" ]]; then
+        local _hook_dir _shim
+        _hook_dir=$(detect_hook_dir 2>/dev/null || echo "")
+        _shim=""
+        [[ -n "$_hook_dir" ]] && _shim="${_hook_dir}/shims/php"
+        if [[ -n "$_shim" && -x "$_shim" && "$phpbin" != "$_shim" ]]; then
+            echo ""
+            echo -e "  ${YELLOW}!${NC} ${BOLD}Pin is set but inactive in this terminal${NC} ${DIM}(php resolves to ${phpbin:-none}, not the shim)${NC}"
+            echo -e "    ${DIM}Activate: source ${_hook_dir}/php-auto.bash  (zsh: php-auto.zsh, fish: php-auto.fish)${NC}"
+            echo -e "    ${DIM}Or just open a new terminal.${NC}"
+        fi
+    fi
 }
 
 cmd_global() {
@@ -452,6 +469,13 @@ cmd_local() {
 # under --fish. On any problem it emits a snippet that prints to stderr and runs
 # `false`, so the eval in the caller's shell surfaces the error and returns
 # non-zero without setting anything.
+#
+# Confirmation messages are emitted as `echo ... >&2` inside the eval'd snippet
+# rather than printed directly. cmd_sh_shell's own stdout is what the wrapper
+# captures via `$(...)` (it cannot reach the user's terminal), so the user only
+# sees what we route back through the eval. Stderr from here would be visible,
+# but inside the wrapper it loses the "after the eval" ordering and looks like a
+# separate message; emitting through eval keeps everything in one logical step.
 cmd_sh_shell() {
     local fish=false do_unset=false ver=""
     while [[ $# -gt 0 ]]; do
@@ -470,6 +494,7 @@ cmd_sh_shell() {
         else
             echo "unset PHPVM_SHELL_VERSION"
         fi
+        echo "echo 'phpvm: shell pin removed for this terminal.' >&2"
         return 0
     fi
 
@@ -489,6 +514,22 @@ cmd_sh_shell() {
         echo "set -gx PHPVM_SHELL_VERSION ${ver}"
     else
         echo "export PHPVM_SHELL_VERSION=${ver}"
+    fi
+    echo "echo 'phpvm: pinned this terminal to PHP ${ver}.' >&2"
+
+    # Hint when the shim is not actually intercepting `php` in the caller's
+    # PATH: the pin is set, but php still resolves elsewhere so the version
+    # change is invisible. Common when the user already had a terminal open
+    # before installing the hook.
+    local hook_dir shim_path cur_php
+    hook_dir=$(detect_hook_dir 2>/dev/null || echo "")
+    shim_path=""
+    [[ -n "$hook_dir" ]] && shim_path="${hook_dir}/shims/php"
+    cur_php=$(command -v php 2>/dev/null || echo "")
+    if [[ -n "$shim_path" && -x "$shim_path" && "$cur_php" != "$shim_path" ]]; then
+        echo "echo 'phpvm: ! shim not on PATH in this terminal, so php still resolves to ${cur_php:-(none)}.' >&2"
+        echo "echo '  Activate now: source ${hook_dir}/php-auto.bash  (zsh: php-auto.zsh, fish: php-auto.fish)' >&2"
+        echo "echo '  Or just open a new terminal.' >&2"
     fi
 }
 

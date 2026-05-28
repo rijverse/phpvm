@@ -86,6 +86,19 @@ else
     echo -e "  ${DIM}Run with sudo for system-wide install.${NC}"
 fi
 
+# under sudo, $HOME and $SHELL belong to root, not the invoking user. resolve
+# the real user's home + login shell from passwd so per-user files (rc files,
+# autostart) land in the right place with the right ownership.
+if [[ $EUID -eq 0 ]]; then
+    USER_HOME=$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f6)
+    USER_SHELL=$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f7)
+    [[ -z "$USER_HOME" ]] && USER_HOME="$HOME"
+    [[ -z "$USER_SHELL" ]] && USER_SHELL="${SHELL:-/bin/bash}"
+else
+    USER_HOME="$HOME"
+    USER_SHELL="${SHELL:-/bin/bash}"
+fi
+
 # what to install (interactive) or read from metadata (upgrade mode)
 
 INSTALL_CLI=false
@@ -189,12 +202,6 @@ EOF
         success "Desktop entry created"
 
         # autostart on login (user-scope only; xdg autostart is per-user)
-        # under sudo, $HOME points at /root; resolve the real invoking user's home via passwd
-        if [[ $EUID -eq 0 ]]; then
-            USER_HOME=$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f6)
-        else
-            USER_HOME="$HOME"
-        fi
         AUTOSTART_DIR="${USER_HOME}/.config/autostart"
         AUTOSTART_FILE="${AUTOSTART_DIR}/phpvm-gui.desktop"
 
@@ -310,42 +317,52 @@ echo ""
 RC=""
 HOOK_LINE=""
 HOOK_ADDED=0
-SHELL_NAME=$(basename "${SHELL:-bash}")
+SHELL_NAME=$(basename "$USER_SHELL")
 case "$SHELL_NAME" in
     bash)
         HOOK_LINE="source ${HOOK_DIR}/php-auto.bash"
-        RC="$HOME/.bashrc"
+        RC="${USER_HOME}/.bashrc"
         ;;
     zsh)
         HOOK_LINE="source ${HOOK_DIR}/php-auto.zsh"
-        RC="$HOME/.zshrc"
+        RC="${USER_HOME}/.zshrc"
         ;;
     fish)
         HOOK_LINE="source ${HOOK_DIR}/php-auto.fish"
-        RC="$HOME/.config/fish/config.fish"
+        RC="${USER_HOME}/.config/fish/config.fish"
         ;;
 esac
 
 if [[ -n "$RC" ]]; then
     if grep -qF "$HOOK_LINE" "$RC" 2>/dev/null; then
         (( UPGRADE )) || warn "Hook already present in ${RC}"
-    elif (( UPGRADE )); then
-        info "Skipping shell hook prompt (upgrade mode)"
     else
-        # default-enable: the everyday per-shell behavior depends on the hook
+        # default-enable: the everyday per-shell behavior depends on the hook.
+        # in upgrade mode, install without prompting so users who missed the
+        # hook on first install (e.g. the prior $HOME-under-sudo bug) recover
+        # automatically on --upgrade / --self-update.
         ans="y"
-        if (( INTERACTIVE )); then
+        if (( UPGRADE )); then
+            info "Hook missing in ${RC}, adding (upgrade mode)"
+        elif (( INTERACTIVE )); then
             read -rp "  Enable the shell hook in ${RC}? [Y/n] " ans < /dev/tty
             ans="${ans:-y}"
         else
             info "Non-interactive, enabling the shell hook by default"
         fi
         if [[ ! "$ans" =~ ^[Nn]$ ]]; then
-            {
-                echo ""
-                echo "# phpvm auto-switch"
-                echo "$HOOK_LINE"
-            } >> "$RC"
+            HOOK_BLOCK=$'\n# phpvm auto-switch\n'"${HOOK_LINE}"
+            if [[ $EUID -eq 0 && "$CURRENT_USER" != "root" ]]; then
+                # write as the invoking user so the file keeps their ownership.
+                # ensure fish's config dir exists for them before appending.
+                if [[ "$SHELL_NAME" == "fish" ]]; then
+                    sudo -u "$CURRENT_USER" mkdir -p "$(dirname "$RC")"
+                fi
+                printf '%s\n' "$HOOK_BLOCK" | sudo -u "$CURRENT_USER" tee -a "$RC" >/dev/null
+            else
+                [[ "$SHELL_NAME" == "fish" ]] && mkdir -p "$(dirname "$RC")"
+                printf '%s\n' "$HOOK_BLOCK" >> "$RC"
+            fi
             success "Hook added to ${CYAN}${RC}${NC}"
             HOOK_ADDED=1
         fi

@@ -29,12 +29,14 @@ run_version() {
         "$image" \
         bash -c '
             apt-get update -qq
-            apt-get install -y -qq bash dpkg php-cli python3 python3-gi \
+            apt-get install -y -qq bash zsh dpkg php-cli python3 python3-gi \
                 gir1.2-gtk-3.0 xvfb shellcheck 2>/dev/null || true
             apt-get install -y -qq gir1.2-ayatana-appindicator3-0.1 2>/dev/null \
                 || apt-get install -y -qq gir1.2-appindicator3-0.1 2>/dev/null || true
             echo ""
             bash tests/test_cli.sh phpvm.sh
+            echo ""
+            bash tests/test_install.sh install.sh
             echo ""
             bash tests/test_gui.sh phpvm-gui.py
         '

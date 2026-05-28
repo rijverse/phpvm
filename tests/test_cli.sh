@@ -47,6 +47,22 @@ out=$(bash "$PHPVM" --current 2>&1)
     && ok "--current shows shell/project/global labels" \
     || fail "--current missing layer labels: ${out}"
 
+sep "--current inactive-pin hint (shell pin set, shim not on PATH)"
+# fakes "user opened a terminal before installing the hook": shell pin is set
+# but PATH doesn't include the shim, so php resolves to the system binary.
+# requires a hook dir to exist so the shim path can be detected.
+if [[ -d /etc/phpvm/shims || -d "$HOME/.phpvm/shims" ]]; then
+    sanitized=$(echo "$PATH" | tr ':' '\n' | grep -v '/phpvm/shims$' | paste -sd: -)
+    out=$(PATH="$sanitized" PHPVM_SHELL_VERSION=8.99 bash "$PHPVM" --current 2>&1)
+    if [[ "$out" == *"Pin is set but inactive"* ]]; then
+        ok "--current warns when pin is set but shim is off PATH"
+    else
+        fail "--current did not warn about inactive pin: ${out}"
+    fi
+else
+    ok "inactive-pin hint test skipped (no /etc/phpvm/shims or ~/.phpvm/shims)"
+fi
+
 sep "--set (no version arg, expect usage error, not crash)"
 out=$(bash "$PHPVM" --set 2>&1); rc=$?
 [[ $rc -ne 0 && "$out" == *"Usage"* ]] \
@@ -96,13 +112,19 @@ out=$(PHPVM_OS_RELEASE="$OSR_DIR/debian" bash "$PHPVM" install 8.2 --print 2>&1)
 
 sep "sh-shell --unset (POSIX)"
 out=$(bash "$PHPVM" sh-shell --unset 2>&1)
-[[ "$out" == "unset PHPVM_SHELL_VERSION" ]] \
+[[ "$out" == *"unset PHPVM_SHELL_VERSION"* ]] \
     && ok "sh-shell --unset emits POSIX unset" || fail "sh-shell --unset wrong: ${out}"
+[[ "$out" == *"shell pin removed"* ]] \
+    && ok "sh-shell --unset emits confirmation message via eval" \
+    || fail "sh-shell --unset missing confirmation: ${out}"
 
 sep "sh-shell --unset --fish"
 out=$(bash "$PHPVM" sh-shell --unset --fish 2>&1)
-[[ "$out" == "set -e PHPVM_SHELL_VERSION" ]] \
+[[ "$out" == *"set -e PHPVM_SHELL_VERSION"* ]] \
     && ok "sh-shell --unset --fish emits fish syntax" || fail "sh-shell --unset --fish wrong: ${out}"
+[[ "$out" == *"shell pin removed"* ]] \
+    && ok "sh-shell --unset --fish emits confirmation message via eval" \
+    || fail "sh-shell --unset --fish missing confirmation: ${out}"
 
 sep "sh-shell (no version, emits a failing snippet not a crash)"
 out=$(bash "$PHPVM" sh-shell 2>&1)
@@ -118,13 +140,54 @@ sep "sh-shell (installed version, emits export)"
 inst=$(update-alternatives --list php 2>/dev/null | grep -oE 'php[0-9]+\.[0-9]+' | head -1 | sed 's/php//')
 if [[ -n "$inst" ]]; then
     out=$(bash "$PHPVM" sh-shell "$inst" 2>&1)
-    [[ "$out" == "export PHPVM_SHELL_VERSION=${inst}" ]] \
+    [[ "$out" == *"export PHPVM_SHELL_VERSION=${inst}"* ]] \
         && ok "sh-shell ${inst} emits POSIX export" || fail "sh-shell ${inst} wrong: ${out}"
+    [[ "$out" == *"pinned this terminal to PHP ${inst}"* ]] \
+        && ok "sh-shell ${inst} emits confirmation message" \
+        || fail "sh-shell ${inst} missing confirmation: ${out}"
     out=$(bash "$PHPVM" sh-shell "$inst" --fish 2>&1)
-    [[ "$out" == "set -gx PHPVM_SHELL_VERSION ${inst}" ]] \
+    [[ "$out" == *"set -gx PHPVM_SHELL_VERSION ${inst}"* ]] \
         && ok "sh-shell ${inst} --fish emits fish set -gx" || fail "sh-shell ${inst} --fish wrong: ${out}"
+    [[ "$out" == *"pinned this terminal to PHP ${inst}"* ]] \
+        && ok "sh-shell ${inst} --fish emits confirmation message" \
+        || fail "sh-shell ${inst} --fish missing confirmation: ${out}"
 else
     ok "sh-shell success path skipped (no PHP registered in update-alternatives)"
+fi
+
+sep "sh-shell (installed version, eval'd by a parent bash sets pin and prints confirmation to stderr)"
+# proves the full round trip: parent shell evals stdout from sh-shell, the
+# eval'd snippet sets the env var AND prints the confirmation to its own stderr.
+if [[ -n "$inst" ]]; then
+    confirm=$(bash -c "
+        unset PHPVM_SHELL_VERSION
+        eval \"\$(bash '$PHPVM' sh-shell '$inst' 2>/dev/null)\" 2>&1 >/dev/null
+        # capture the env to a second pass so we can also assert it was set
+        eval \"\$(bash '$PHPVM' sh-shell '$inst' 2>/dev/null)\" >/dev/null
+        printf 'PIN=%s\\n' \"\${PHPVM_SHELL_VERSION:-unset}\"
+    ")
+    [[ "$confirm" == *"pinned this terminal to PHP ${inst}"* && "$confirm" == *"PIN=${inst}"* ]] \
+        && ok "round-trip eval: pin set + stderr confirmation visible to user" \
+        || fail "round-trip eval did not surface confirmation or pin: ${confirm}"
+else
+    ok "round-trip eval test skipped (no installed PHP)"
+fi
+
+sep "sh-shell inactive-shim hint"
+# Force a PATH where the shim is NOT present, and verify the hint fires when an
+# install hook dir exists. We need a hook dir for detect_hook_dir; use ~/.phpvm
+# fixture path. Skip the hint check if no hook dir is detectable.
+if [[ -n "$inst" ]] && { [[ -d /etc/phpvm ]] || [[ -d "$HOME/.phpvm" ]]; }; then
+    # strip the shim dir from PATH so the hint fires
+    sanitized=$(echo "$PATH" | tr ':' '\n' | grep -v '/phpvm/shims$' | paste -sd: -)
+    out=$(PATH="$sanitized" bash "$PHPVM" sh-shell "$inst" 2>&1)
+    if [[ "$out" == *"shim not on PATH"* ]]; then
+        ok "sh-shell emits inactive-shim hint when shim is missing from PATH"
+    else
+        fail "sh-shell did not emit inactive-shim hint: ${out}"
+    fi
+else
+    ok "inactive-shim hint test skipped (no installed PHP or hook dir)"
 fi
 
 sep "global (no version arg, expect usage error)"

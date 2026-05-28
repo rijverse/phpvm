@@ -1,10 +1,13 @@
-# bash hook: phpvm shell integration + auto-switch on cd
-# Add to ~/.bashrc:
-#   source /etc/phpvm/php-auto.bash    (system install)
-#   source ~/.phpvm/php-auto.bash      (user install)
+# zsh hook: phpvm shell integration + auto-switch on cd
+# Add to ~/.zshrc:
+#   source /etc/phpvm/php-auto.zsh    (system install)
+#   source ~/.phpvm/php-auto.zsh      (user install)
 
-# locate this hook's own directory so we can find the shim dir next to it
-_PHPVM_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
+# locate this hook's own directory so we can find the shim dir next to it.
+# ${(%):-%x} expands to the absolute path of the file currently being sourced
+# (zsh prompt-expansion: %x is the source-file name). :A canonicalises and :h
+# strips the basename, leaving the directory.
+_PHPVM_HOOK_DIR="${${(%):-%x}:A:h}"
 
 # put the shim dir at the FRONT of PATH so `php` hits our shim. Some setups
 # (login shells that re-prepend /bin via /etc/environment, snap profile.d
@@ -56,17 +59,18 @@ _php_switcher_auto() {
     fi
 }
 
-_php_switcher_prompt() {
-    if [[ "$PWD" != "$_PHPVM_LAST_PWD" ]]; then
-        _PHPVM_LAST_PWD="$PWD"
-        _php_switcher_auto
+# zsh runs chpwd_functions whenever PWD changes. Register idempotently so
+# re-sourcing the hook does not add duplicates.
+autoload -Uz add-zsh-hook 2>/dev/null
+if typeset -f add-zsh-hook >/dev/null 2>&1; then
+    add-zsh-hook -d chpwd _php_switcher_auto 2>/dev/null
+    add-zsh-hook chpwd _php_switcher_auto
+else
+    # fallback for older zsh without add-zsh-hook
+    typeset -ga chpwd_functions
+    if [[ -z "${chpwd_functions[(r)_php_switcher_auto]}" ]]; then
+        chpwd_functions+=(_php_switcher_auto)
     fi
-}
-
-case ";${PROMPT_COMMAND:-};" in
-    *";_php_switcher_prompt;"*) ;;
-    *) PROMPT_COMMAND="_php_switcher_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}" ;;
-esac
+fi
 
 _php_switcher_auto
-_PHPVM_LAST_PWD="$PWD"

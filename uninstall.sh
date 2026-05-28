@@ -14,6 +14,24 @@ success() { echo -e "  ${GREEN}✓${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
 info()    { echo -e "  ${BLUE}→${NC} $*"; }
 
+# remove $1, attempting sudo if needed. Never aborts the script: if removal
+# fails (e.g. sudo can't prompt under set -e + no tty), we warn and keep going
+# so the per-user cleanup still runs. flags: -d for directory removal.
+_rm_path() {
+    local mode="$1" path="$2"
+    local rm_args=(-f)
+    [[ "$mode" == "-d" ]] && rm_args=(-rf)
+    if [[ -w "$path" ]] || [[ -w "$(dirname "$path")" ]] || [[ $EUID -eq 0 ]]; then
+        rm "${rm_args[@]}" -- "$path" && return 0
+    fi
+    if sudo -n true 2>/dev/null; then
+        sudo rm "${rm_args[@]}" -- "$path" && return 0
+    fi
+    sudo rm "${rm_args[@]}" -- "$path" 2>/dev/null && return 0
+    warn "Could not remove ${path} (no permission, no sudo)"
+    return 0
+}
+
 echo ""
 echo -e "${BOLD}${BLUE}╭─────────────────────────────────────────╮${NC}"
 echo -e "${BOLD}${BLUE}│            phpvm Uninstaller            │${NC}"
@@ -68,73 +86,43 @@ fi
 for dir in "${BIN_DIRS[@]}"; do
     for bin in phpvm phpvm-gui; do
         f="${dir}/${bin}"
-        if [[ -f "$f" ]]; then
-            if [[ -w "$dir" || $EUID -eq 0 ]]; then
-                rm -f "$f"
-            else
-                sudo rm -f "$f"
-            fi
-            success "Removed ${f}"
-        fi
+        [[ -f "$f" ]] || continue
+        _rm_path -f "$f" && [[ ! -f "$f" ]] && success "Removed ${f}"
     done
 done
 
 # remove hook dirs
 for d in "${HOOK_DIRS[@]}"; do
-    if [[ -d "$d" ]]; then
-        if [[ -w "$(dirname "$d")" || $EUID -eq 0 ]]; then
-            rm -rf "$d"
-        else
-            sudo rm -rf "$d"
-        fi
-        success "Removed ${d}"
-    fi
+    [[ -d "$d" ]] || continue
+    _rm_path -d "$d" && [[ ! -d "$d" ]] && success "Removed ${d}"
 done
 
 # remove sudoers
 if [[ -f "$SUDOERS" ]]; then
-    if [[ $EUID -eq 0 ]]; then
-        rm -f "$SUDOERS"
-    else
-        sudo rm -f "$SUDOERS"
-    fi
-    success "Removed ${SUDOERS}"
+    _rm_path -f "$SUDOERS" && [[ ! -f "$SUDOERS" ]] && success "Removed ${SUDOERS}"
 fi
 
 # remove desktop entries
 for desktop in "${DESKTOPS[@]}"; do
     [[ -f "$desktop" ]] || continue
-    if [[ -w "$desktop" || $EUID -eq 0 ]]; then
-        rm -f "$desktop"
-    else
-        sudo rm -f "$desktop"
-    fi
-    success "Removed ${desktop}"
+    _rm_path -f "$desktop" && [[ ! -f "$desktop" ]] && success "Removed ${desktop}"
 done
 
 # remove autostart entries
 for a in "${AUTOSTARTS[@]}"; do
     [[ -f "$a" ]] || continue
-    if [[ -w "$a" || $EUID -eq 0 ]]; then
-        rm -f "$a"
-    else
-        sudo rm -f "$a"
-    fi
-    success "Removed ${a}"
+    _rm_path -f "$a" && [[ ! -f "$a" ]] && success "Removed ${a}"
 done
 
 # remove icons + refresh cache
 ICON_DIRS_TO_REFRESH=()
 for ic in "${ICONS[@]}"; do
     [[ -f "$ic" ]] || continue
-    if [[ -w "$ic" || $EUID -eq 0 ]]; then
-        rm -f "$ic"
-    else
-        sudo rm -f "$ic"
+    if _rm_path -f "$ic" && [[ ! -f "$ic" ]]; then
+        success "Removed ${ic}"
+        # icon path is .../hicolor/scalable/apps/phpvm.svg; strip 3 levels to get the hicolor theme root for gtk-update-icon-cache
+        ICON_DIRS_TO_REFRESH+=("$(dirname "$(dirname "$(dirname "$ic")")")")
     fi
-    success "Removed ${ic}"
-    # icon path is .../hicolor/scalable/apps/phpvm.svg; strip 3 levels to get the hicolor theme root for gtk-update-icon-cache
-    ICON_DIRS_TO_REFRESH+=("$(dirname "$(dirname "$(dirname "$ic")")")")
 done
 if command -v gtk-update-icon-cache &>/dev/null; then
     for d in "${ICON_DIRS_TO_REFRESH[@]}"; do
