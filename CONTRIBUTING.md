@@ -29,7 +29,7 @@ bash phpvm.sh
 Two suites live under `tests/`. Both are plain bash, no fixtures or framework. Run them before opening a PR:
 
 ```bash
-bash tests/test_cli.sh       # 33 checks against phpvm.sh: --version, --list, --auto, sh-shell, shim, etc.
+bash tests/test_cli.sh       # 35 checks against phpvm.sh + hook: --version, --list, --auto, sh-shell, shim, hook PATH order
 bash tests/test_gui.sh       # 5 checks against phpvm-gui.py: gi / GTK / AppIndicator imports + syntax + xvfb smoke
 ```
 
@@ -41,6 +41,16 @@ bash tests/local-compat.sh 22.04     # one
 ```
 
 CI runs the same two suites across the three Ubuntu versions via `.github/workflows/compat.yml` on every PR that touches `phpvm.sh`, `phpvm-gui.py`, `install.sh`, `uninstall.sh`, `shell/`, or `tests/`. Keep them green.
+
+### Hook changes must add or update a hook test
+
+Any change to `shell/php-auto.bash`, `shell/php-auto.zsh`, `shell/php-auto.fish`, or `shell/shim-php` must include a corresponding test in `tests/test_cli.sh` that **sources the hook** (do not just lint or grep it) and asserts the behavior end to end. Cover both the success path and a hostile environment that exercises the change. For PATH-touching changes, that means at minimum:
+
+- assert `/etc/phpvm/shims` (or the per-test hook dir) ends up at PATH position 0, not just "somewhere in PATH";
+- pre-populate PATH with an entry that would shadow the shim (e.g. `/bin:` first) and confirm the hook still wins;
+- source the hook two or three times back-to-back and confirm the shim entry appears exactly once (idempotence).
+
+This rule exists because v2.5.1 shipped a hook regression that passed all 33 existing tests: the hook was never sourced under test, the shim binary was tested in isolation, and the bug only manifested when an environmental actor (PAM, snap profile.d, IDE) prepended to PATH after the hook ran. A naive "did the hook add the shim?" test would have passed against the broken code.
 
 ## Changelog
 

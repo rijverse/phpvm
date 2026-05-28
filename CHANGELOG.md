@@ -7,6 +7,12 @@ is [SemVer](https://semver.org/).
 
 ### Fixed
 
+- Shell hook only ensured the shim dir was *somewhere* in `PATH`, not first. On boxes where something prepends `/bin:`
+  or `/usr/bin:` to `PATH` after the hook runs (login shells re-reading `/etc/environment`, snap `profile.d` scripts,
+  IDE-injected environments), the shim got demoted and `php` resolved to `/usr/bin/php` (the global symlink), so
+  `phpvm shell <ver>` set `PHPVM_SHELL_VERSION` correctly but had no effect on subsequent `php` calls. The hook now
+  forces the shim to position 0 every time it is sourced, stripping any stale copies first so PATH does not grow on
+  re-source. Applied to all three hooks (`php-auto.bash`, `php-auto.zsh`, `php-auto.fish`).
 - Uninstaller failed to stop a running `phpvm-gui` because `pgrep/pkill -x phpvm-gui` matched on `comm`, which is
   `python3` (from the shebang), not `phpvm-gui`. The kill step was silently skipped, the binary got removed, and the
   Python process kept its tray indicator registered on D-Bus, so the icon stuck around after uninstall. Switched to
@@ -19,8 +25,8 @@ is [SemVer](https://semver.org/).
   already-open terminals won't pick it up until they `source` their rc. New terminals work automatically. Replaces the
   easy-to-miss dim one-liner that fired regardless. The same gotcha is now documented in README's "Installing" section.
 - Repo-wide typography sweep: removed all em dashes and Unicode ellipses from code, comments, prose, and CLI output
-  (62 occurrences). Replaced with commas, semicolons, colons, periods, or parentheses depending on the relationship of
-  the surrounding clauses; ellipses became ASCII `...`. Unicode arrows (`→`) kept as house style for status glyphs.
+  (62 occurrences). Replaced with commas, semicolons, colons, periods, or parens; ellipses became ASCII `...`. Unicode
+  arrows (`→`) kept as house style for status glyphs.
 
 ### Docs
 
