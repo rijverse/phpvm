@@ -9,10 +9,13 @@ is [SemVer](https://semver.org/).
 
 - `install.sh` now launches `phpvm-gui` immediately after installation when the user selected GUI (options 2 or 3).
   Runs in the background with `nohup` + `disown` so the tray icon appears without the installer blocking. When run
-  under `sudo`, `DISPLAY` is typically stripped by sudo's env reset; the installer recovers it (along with
-  `DBUS_SESSION_BUS_ADDRESS`) by scanning `/proc/<pid>/environ` for one of the invoking user's running processes,
-  then launches as the real user via `sudo -u`. Skipped silently in non-interactive mode (CI/scripts) or when
-  `python3-gi` is absent.
+  under `sudo`, the session env is mostly stripped; the installer harvests the full set it needs (`DISPLAY`,
+  `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `XDG_SESSION_TYPE`, `XDG_CURRENT_DESKTOP`, `XDG_DATA_DIRS`,
+  `XDG_CONFIG_DIRS`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`) from a user-owned graphical process via
+  `/proc/<pid>/environ` and re-launches as the real user with `sudo -u env ...`. Without `XDG_RUNTIME_DIR` the
+  AppIndicator backend can't render the label next to the tray icon, and a `gnome-terminal` later spawned from the
+  tray menu (`Open Terminal UI`) can't reach its session bus, so all of those vars matter for the tray to be usable.
+  Skipped silently in non-interactive mode (CI/scripts) or when `python3-gi` is absent.
 
 ### Fixed
 
