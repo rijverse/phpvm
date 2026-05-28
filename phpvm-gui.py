@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""phpvm system tray GUI — requires python3-gi, GTK3, and an AppIndicator
+"""phpvm system tray GUI: requires python3-gi, GTK3, and an AppIndicator
 backend. Ayatana AppIndicator3 is preferred; legacy AppIndicator3 also works.
 
     sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1
@@ -436,7 +436,7 @@ class PHPSwitcherWindow(Gtk.Window):
 
         folder_btn = Gtk.Button()
         folder_btn.set_image(Gtk.Image.new_from_icon_name("folder-open-symbolic", Gtk.IconSize.BUTTON))
-        folder_btn.set_tooltip_text("Pick project folder…")
+        folder_btn.set_tooltip_text("Pick project folder...")
         folder_btn.connect("clicked", self._on_folder)
         hb.pack_end(folder_btn)
 
@@ -504,7 +504,7 @@ class PHPSwitcherWindow(Gtk.Window):
             self.project_label.set_markup(
                 f'<span foreground="#57606a"><small>'
                 f'<b>Project requires PHP {GLib.markup_escape_text(proj)}</b>'
-                f'  — {GLib.markup_escape_text(os.getcwd())}'
+                f'  - {GLib.markup_escape_text(os.getcwd())}'
                 f'</small></span>'
             )
         else:
@@ -588,7 +588,7 @@ class PHPSwitcherWindow(Gtk.Window):
 
     def _on_switch(self, _btn, target):
         name = Path(target).name
-        self._set_status(f"Switching to {name}…")
+        self._set_status(f"Switching to {name}...")
         def worker():
             ok, err = switch_php(target)
             GLib.idle_add(self._post_switch, ok, name, err)
@@ -766,11 +766,11 @@ class PHPSwitcherTray:
         auto_item.connect("activate", self._on_auto)
         self.menu.append(auto_item)
 
-        folder_item = Gtk.MenuItem(label="Auto-detect from folder…")
+        folder_item = Gtk.MenuItem(label="Auto-detect from folder...")
         folder_item.connect("activate", self._on_auto_folder)
         self.menu.append(folder_item)
 
-        window_item = Gtk.MenuItem(label="Open phpvm window…")
+        window_item = Gtk.MenuItem(label="Open phpvm window...")
         window_item.connect("activate", self._on_open_window)
         self.menu.append(window_item)
 

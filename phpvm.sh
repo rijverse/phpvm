@@ -1,12 +1,12 @@
 #!/bin/bash
-# phpvm - PHP Version Manager v2.5.0
+# phpvm - PHP Version Manager v2.5.1
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
     echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
     exit 1
 fi
 
-VERSION="2.5.0"
+VERSION="2.5.1"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -254,7 +254,7 @@ do_switch() {
     local quiet="${2:-false}"
 
     local err
-    err=$(sudo -p "[phpvm] switching PHP — password for %u: " update-alternatives --set php "$target" 2>&1 >/dev/null)
+    err=$(sudo -p "[phpvm] switching PHP, password for %u: " update-alternatives --set php "$target" 2>&1 >/dev/null)
     local code=$?
 
     if [[ "$quiet" != "true" ]]; then
@@ -768,7 +768,7 @@ cmd_enable_hook() {
     local hook_dir
     hook_dir=$(detect_hook_dir) || {
         echo -e "${RED}Hook directory not found.${NC}" >&2
-        echo -e "${DIM}Expected /etc/phpvm or ~/.phpvm — re-run install.sh.${NC}" >&2
+        echo -e "${DIM}Expected /etc/phpvm or ~/.phpvm; re-run install.sh.${NC}" >&2
         exit 1
     }
 
@@ -891,7 +891,7 @@ cmd_self_update() {
             read -rp "  Already on ${VERSION}. Reinstall anyway? [y/N] " ans
             [[ "$ans" =~ ^[Yy]$ ]] || { echo -e "${DIM}Cancelled.${NC}"; exit 0; }
         else
-            echo -e "${DIM}Already on ${VERSION}; non-interactive — skipping.${NC}"
+            echo -e "${DIM}Already on ${VERSION}; non-interactive, skipping.${NC}"
             exit 0
         fi
     fi
@@ -918,7 +918,7 @@ _doc_ok()   { echo -e "  ${GREEN}✓${NC} $*"; (( _doc_pass++ )); }
 _doc_bad()  { echo -e "  ${RED}✗${NC} $*"; (( _doc_fail++ )); }
 _doc_warn() { echo -e "  ${YELLOW}!${NC} $*"; (( _doc_warn++ )); }
 _doc_info() { echo -e "    ${DIM}$*${NC}"; }
-_doc_skip() { echo -e "  ${DIM}—${NC}  $*"; }
+_doc_skip() { echo -e "  ${DIM}-${NC}  $*"; }
 _doc_section() {
     echo ""
     echo -e "${BOLD}${BLUE}▸ $*${NC}"
@@ -949,14 +949,14 @@ cmd_doctor() {
         _doc_bad "phpvm not found in PATH"
     fi
 
-    # path shadow — multiple phpvm binaries
+    # path shadow: multiple phpvm binaries
     # `command -v -a` lists every match in PATH; awk dedupes symlink chains pointing to the same file
     local all_phpvm
     all_phpvm=$(command -v -a phpvm 2>/dev/null | awk '!seen[$0]++')
     local count
     count=$(echo "$all_phpvm" | grep -c .)
     if (( count > 1 )); then
-        _doc_warn "Multiple phpvm in PATH — first wins:"
+        _doc_warn "Multiple phpvm in PATH, first wins:"
         while IFS= read -r p; do
             [[ -n "$p" ]] && _doc_info "$p"
         done <<< "$all_phpvm"
@@ -970,13 +970,13 @@ cmd_doctor() {
         if [[ -w "$bin_dir" ]]; then
             _doc_ok "BIN_DIR ${BOLD}${bin_dir}${NC} writable by ${USER}"
         else
-            _doc_warn "BIN_DIR ${BOLD}${bin_dir}${NC} not writable — self-update needs sudo"
+            _doc_warn "BIN_DIR ${BOLD}${bin_dir}${NC} not writable; self-update needs sudo"
         fi
     fi
 
     # bash version
     if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
-        _doc_bad "bash ${BASH_VERSION} — need 4.3+"
+        _doc_bad "bash ${BASH_VERSION}, need 4.3+"
     else
         _doc_ok "bash ${BASH_VERSION}"
     fi
@@ -985,7 +985,7 @@ cmd_doctor() {
     _doc_section "PHP runtimes"
 
     if ! command -v update-alternatives &>/dev/null; then
-        _doc_bad "update-alternatives missing — Debian/Ubuntu only"
+        _doc_bad "update-alternatives missing (Debian/Ubuntu only)"
         _doc_info "Fix: sudo apt install dpkg"
     else
         _doc_ok "update-alternatives: $(command -v update-alternatives)"
@@ -1028,7 +1028,7 @@ cmd_doctor() {
         comp_ver=$(composer --version 2>/dev/null | head -1)
         _doc_ok "composer: ${comp_ver}"
     else
-        _doc_warn "composer not installed — composer.json detection works but install is up to you"
+        _doc_warn "composer not installed; composer.json detection works but install is up to you"
         _doc_info "Install: https://getcomposer.org/download/"
     fi
 
@@ -1055,7 +1055,7 @@ cmd_doctor() {
             done <<< "$fpm_units"
         fi
     else
-        _doc_skip "systemctl not available — skipping FPM check"
+        _doc_skip "systemctl not available, skipping FPM check"
     fi
 
     # sudo
@@ -1068,7 +1068,7 @@ cmd_doctor() {
         _doc_ok "Sudoers: ${BOLD}${sudoers}${NC}"
         _doc_info "${rule}"
         if [[ "$rule" == *"php*"* ]]; then
-            _doc_warn "Rule uses old glob ${BOLD}php*${NC} — re-run install.sh to tighten"
+            _doc_warn "Rule uses old glob ${BOLD}php*${NC}; re-run install.sh to tighten"
         fi
     else
         _doc_warn "No sudoers rule at ${BOLD}${sudoers}${NC}"
@@ -1090,7 +1090,7 @@ cmd_doctor() {
             _doc_info "Auto-switch will silently no-op without passwordless sudo."
         fi
     else
-        _doc_warn "No active PHP alternative — cannot test sudo -n"
+        _doc_warn "No active PHP alternative, cannot test sudo -n"
     fi
 
     # shell hook
@@ -1112,7 +1112,7 @@ cmd_doctor() {
                 (( missing++ ))
             fi
         done
-        (( missing > 0 )) && _doc_warn "${missing} hook file(s) missing — re-run install.sh"
+        (( missing > 0 )) && _doc_warn "${missing} hook file(s) missing; re-run install.sh"
     fi
 
     local shell_name rc
@@ -1179,7 +1179,7 @@ cmd_doctor() {
         _doc_ok "GUI binary: ${BOLD}${gui_bin}${NC}"
 
         if ! command -v python3 &>/dev/null; then
-            _doc_bad "python3 missing — GUI will not start"
+            _doc_bad "python3 missing, GUI will not start"
             _doc_info "Fix: sudo apt install python3"
         else
             local py_ver
@@ -1200,13 +1200,13 @@ cmd_doctor() {
                 _doc_info "Fix: sudo apt install gir1.2-gtk-3.0"
             fi
 
-            # ubuntu 20.04+ ships Ayatana fork; older distros still have the legacy AppIndicator3 — accept either
+            # ubuntu 20.04+ ships Ayatana fork; older distros still have the legacy AppIndicator3, accept either
             if python3 -c "import gi; gi.require_version('AyatanaAppIndicator3','0.1'); from gi.repository import AyatanaAppIndicator3" &>/dev/null; then
                 _doc_ok "Ayatana AppIndicator3 available (tray will work)"
             elif python3 -c "import gi; gi.require_version('AppIndicator3','0.1'); from gi.repository import AppIndicator3" &>/dev/null; then
                 _doc_ok "AppIndicator3 available (legacy, tray will work)"
             else
-                _doc_warn "No AppIndicator typelib — tray icon will not appear"
+                _doc_warn "No AppIndicator typelib, tray icon will not appear"
                 _doc_info "Fix: sudo apt install gir1.2-ayatana-appindicator3-0.1"
             fi
         fi
@@ -1221,7 +1221,7 @@ cmd_doctor() {
         if [[ -n "$icon_found" ]]; then
             _doc_ok "Icon: ${icon_found}"
         else
-            _doc_warn "phpvm.svg icon not installed — GUI uses fallback"
+            _doc_warn "phpvm.svg icon not installed, GUI uses fallback"
             _doc_info "Fix: re-run install.sh"
         fi
 
@@ -1234,7 +1234,7 @@ cmd_doctor() {
         if [[ -n "$desk_found" ]]; then
             _doc_ok "Desktop entry: ${desk_found}"
         else
-            _doc_warn "No .desktop entry — app menu launch unavailable"
+            _doc_warn "No .desktop entry, app menu launch unavailable"
         fi
 
         # autostart
@@ -1439,7 +1439,7 @@ switch_version_tui() {
     echo -e "  Switching to ${BOLD}${CYAN}${label}${NC} ..."
     echo ""
 
-    sudo -p "[phpvm] switching PHP — password for %u: " update-alternatives --set php "$target"
+    sudo -p "[phpvm] switching PHP, password for %u: " update-alternatives --set php "$target"
     local exit_code=$?
 
     echo ""
@@ -1482,7 +1482,7 @@ set_project_tui() {
         existing=$(< .php-version)
         existing="${existing//[[:space:]]/}"
         if [[ -n "$existing" && "$existing" != "$ver" ]]; then
-            echo -e "  ${YELLOW}!${NC} .php-version already says ${BOLD}${existing}${NC} — overwrite?"
+            echo -e "  ${YELLOW}!${NC} .php-version already says ${BOLD}${existing}${NC}, overwrite?"
             echo ""
         fi
     fi

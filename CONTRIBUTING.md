@@ -22,17 +22,42 @@ bash phpvm.sh
 - Target Bash 4.3+ (`local -n` is required); avoid 5-only builtins
 - Don't break keyboard navigation in the TUI
 - Run `shellcheck phpvm.sh` before opening a PR and fix everything it flags
+- Plain ASCII punctuation in code, comments, prose, and CLI output: no em dashes, en dashes, or Unicode ellipses. Use commas, semicolons, colons, periods, parentheses, or `...`. Unicode arrows (`→`) are house style and stay
+
+## Tests
+
+Two suites live under `tests/`. Both are plain bash, no fixtures or framework. Run them before opening a PR:
+
+```bash
+bash tests/test_cli.sh       # 33 checks against phpvm.sh: --version, --list, --auto, sh-shell, shim, etc.
+bash tests/test_gui.sh       # 5 checks against phpvm-gui.py: gi / GTK / AppIndicator imports + syntax + xvfb smoke
+```
+
+Cross-distro compat (Ubuntu 20.04 / 22.04 / 24.04) runs in Docker:
+
+```bash
+bash tests/local-compat.sh           # all three
+bash tests/local-compat.sh 22.04     # one
+```
+
+CI runs the same two suites across the three Ubuntu versions via `.github/workflows/compat.yml` on every PR that touches `phpvm.sh`, `phpvm-gui.py`, `install.sh`, `uninstall.sh`, `shell/`, or `tests/`. Keep them green.
+
+## Changelog
+
+The repo follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Add an entry under `## [Unreleased]` in `CHANGELOG.md` for any user-visible change (new flag, fixed bug, changed behavior, removed feature). Internal refactors and pure doc tweaks don't need one.
 
 ## Reporting bugs
 
 Open an issue and include:
 - OS and bash version (`bash --version`)
 - Your registered PHP versions (`update-alternatives --list php`)
+- Output of `phpvm --doctor` if relevant (it covers CLI install, runtimes, FPM, sudo, hook, shim, GUI, and project state)
 - What you expected vs. what happened
 - Terminal emulator (some TUI rendering quirks are terminal-specific)
 
 ## Pull requests
 
 1. Fork and branch off `main`
-2. Make your change, run shellcheck
-3. Open a PR with a short description of what and why
+2. Make your change, run `shellcheck phpvm.sh` and both test suites
+3. Add a `CHANGELOG.md` entry under `[Unreleased]` if the change is user-visible
+4. Open a PR with a short description of what and why

@@ -27,7 +27,7 @@ success() { echo -e "  ${GREEN}✓${NC} $*"; }
 warn()    { echo -e "  ${YELLOW}!${NC} $*"; }
 err()     { echo -e "  ${RED}✗${NC} $*" >&2; }
 
-# bootstrap — when piped (curl | bash) or copied alone, this script has no
+# bootstrap: when piped (curl | bash) or copied alone, this script has no
 # sibling repo files. Clone the repo to a tmp dir, retarget SCRIPT_DIR, and
 # continue in the same process so the EXIT trap below removes the clone.
 if [[ ! -f "$SCRIPT_DIR/phpvm.sh" || ! -f "$SCRIPT_DIR/phpvm-gui.py" || ! -d "$SCRIPT_DIR/shell" ]]; then
@@ -42,7 +42,7 @@ if [[ ! -f "$SCRIPT_DIR/phpvm.sh" || ! -f "$SCRIPT_DIR/phpvm-gui.py" || ! -d "$S
     trap 'rm -rf "$PHPVM_BOOTSTRAP_TMP"' EXIT
     info "Bootstrapping from ${CYAN}${PHPVM_REMOTE}${NC} @ ${BOLD}${PHPVM_REF}${NC}"
     if ! git clone --depth 1 --branch "$PHPVM_REF" "$PHPVM_REMOTE" "$PHPVM_BOOTSTRAP_TMP" >/dev/null 2>&1; then
-        # branch may be a tag/sha rather than a branch — fall back to default clone + checkout
+        # branch may be a tag/sha rather than a branch; fall back to default clone + checkout
         if ! git clone --depth 1 "$PHPVM_REMOTE" "$PHPVM_BOOTSTRAP_TMP" >/dev/null 2>&1; then
             err "Clone failed: ${PHPVM_REMOTE}"
             exit 1
@@ -79,7 +79,7 @@ else
     HOOK_DIR="$HOME/.phpvm"
     DESKTOP_DIR="$HOME/.local/share/applications"
     CURRENT_USER="$USER"
-    warn "Not root — installing to user paths:"
+    warn "Not root, installing to user paths:"
     echo -e "  ${DIM}  bin     ${BIN_DIR}${NC}"
     echo -e "  ${DIM}  hooks   ${HOOK_DIR}${NC}"
     echo -e "  ${DIM}  desktop ${DESKTOP_DIR}${NC}"
@@ -97,7 +97,7 @@ if (( UPGRADE )); then
     if [[ -f "$META_FILE" ]]; then
         # shellcheck disable=SC1090
         source "$META_FILE"
-        info "Upgrade mode — replicating prior install (CLI=${INSTALL_CLI}, GUI=${INSTALL_GUI})"
+        info "Upgrade mode, replicating prior install (CLI=${INSTALL_CLI}, GUI=${INSTALL_GUI})"
     else
         warn "No metadata at ${META_FILE}; assuming both CLI + GUI"
         INSTALL_CLI=true
@@ -105,7 +105,7 @@ if (( UPGRADE )); then
     fi
 else
     if (( ! INTERACTIVE )); then
-        info "Non-interactive — defaulting to both CLI + GUI"
+        info "Non-interactive, defaulting to both CLI + GUI"
         INSTALL_CLI=true
         INSTALL_GUI=true
     else
@@ -147,7 +147,7 @@ fi
 
 if [[ "$INSTALL_GUI" == "true" ]]; then
     if ! command -v python3 &>/dev/null; then
-        err "python3 not found — cannot install GUI"
+        err "python3 not found, cannot install GUI"
         echo -e "  ${DIM}Install python3 then re-run.${NC}"
         INSTALL_GUI=false
     else
@@ -157,7 +157,7 @@ if [[ "$INSTALL_GUI" == "true" ]]; then
         success "GUI installed"
 
         if ! python3 -c "import gi" &>/dev/null; then
-            warn "python3-gi not found — GUI won't start"
+            warn "python3-gi not found, GUI won't start"
             echo -e "  ${DIM}Fix: sudo apt install python3-gi gir1.2-gtk-3.0 gir1.2-ayatana-appindicator3-0.1${NC}"
         fi
 
@@ -188,7 +188,7 @@ StartupNotify=false
 EOF
         success "Desktop entry created"
 
-        # autostart on login (user-scope only — xdg autostart is per-user)
+        # autostart on login (user-scope only; xdg autostart is per-user)
         # under sudo, $HOME points at /root; resolve the real invoking user's home via passwd
         if [[ $EUID -eq 0 ]]; then
             USER_HOME=$(getent passwd "$CURRENT_USER" 2>/dev/null | cut -d: -f6)
@@ -207,7 +207,7 @@ EOF
             fi
         elif (( ! INTERACTIVE )); then
             ans_auto="n"
-            info "Non-interactive — skipping autostart prompt"
+            info "Non-interactive, skipping autostart prompt"
         else
             echo ""
             echo -e "  ${BOLD}Launch phpvm-gui automatically on login?${NC}"
@@ -266,15 +266,15 @@ echo -e "  ${DIM}Per-shell (phpvm shell) and per-project (phpvm local) need none
 echo ""
 if (( UPGRADE )); then
     if [[ -f /etc/sudoers.d/phpvm ]] && grep -q 'php\*' /etc/sudoers.d/phpvm 2>/dev/null; then
-        warn "Sudoers rule has old glob (php*) — upgrading to tighter pattern"
+        warn "Sudoers rule has old glob (php*), upgrading to tighter pattern"
         ans="y"
     else
         ans="n"
-        [[ -f /etc/sudoers.d/phpvm ]] && info "Sudoers rule already present — keeping it."
+        [[ -f /etc/sudoers.d/phpvm ]] && info "Sudoers rule already present, keeping it."
     fi
 elif (( ! INTERACTIVE )); then
     ans="n"
-    info "Non-interactive — skipping sudoers prompt."
+    info "Non-interactive, skipping sudoers prompt."
 else
     read -rp "  Configure passwordless sudo for update-alternatives? [y/N] " ans < /dev/tty
 fi
@@ -294,7 +294,7 @@ if [[ "$ans" =~ ^[Yy]$ ]]; then
         fi
         success "Sudoers rule added → ${CYAN}${SUDOERS}${NC}"
     else
-        err "Sudoers validation failed — not installed"
+        err "Sudoers validation failed, not installed"
         rm -f "$SUDOERS_TMP"
     fi
 fi
@@ -309,6 +309,7 @@ echo ""
 
 RC=""
 HOOK_LINE=""
+HOOK_ADDED=0
 SHELL_NAME=$(basename "${SHELL:-bash}")
 case "$SHELL_NAME" in
     bash)
@@ -346,10 +347,11 @@ if [[ -n "$RC" ]]; then
                 echo "$HOOK_LINE"
             } >> "$RC"
             success "Hook added to ${CYAN}${RC}${NC}"
+            HOOK_ADDED=1
         fi
     fi
 else
-    warn "Shell '${SHELL_NAME}' not detected — add hook manually:"
+    warn "Shell '${SHELL_NAME}' not detected, add hook manually:"
     echo ""
     echo -e "  Bash: ${DIM}echo 'source ${HOOK_DIR}/php-auto.bash' >> ~/.bashrc${NC}"
     echo -e "  Zsh:  ${DIM}echo 'source ${HOOK_DIR}/php-auto.zsh'  >> ~/.zshrc${NC}"
@@ -400,6 +402,9 @@ fi
 if [[ "$INSTALL_GUI" == "true" ]]; then
     echo -e "    phpvm-gui          System tray applet"
 fi
-echo ""
-echo -e "  ${DIM}Reload shell or run: source ${RC:-~/.bashrc}${NC}"
+if (( HOOK_ADDED )); then
+    echo ""
+    warn "${BOLD}Already open terminals won't have the hook yet${NC} (new ones do)."
+    echo -e "    ${DIM}Activate it here:${NC} ${BOLD}source ${RC}${NC}"
+fi
 echo ""

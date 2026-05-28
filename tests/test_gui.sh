@@ -1,5 +1,5 @@
 #!/bin/bash
-# GUI import + smoke tests — run inside container with python3-gi installed.
+# GUI import + smoke tests; run inside container with python3-gi installed.
 # Usage: bash tests/test_gui.sh [path/to/phpvm-gui.py]
 
 set -uo pipefail
@@ -64,7 +64,7 @@ if command -v xvfb-run &>/dev/null; then
     [[ $rc -eq 0 || "$out" == *"phpvm"* || "$out" == *"usage"* || "$out" == *"Usage"* ]] \
         && ok "gui --help via xvfb exits cleanly" || fail "gui --help via xvfb failed (rc=${rc}): ${out}"
 else
-    echo "  SKIP  xvfb not available — skipping runtime test"
+    echo "  SKIP  xvfb not available, skipping runtime test"
 fi
 
 echo ""

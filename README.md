@@ -49,6 +49,8 @@ cd phpvm && sudo bash install.sh
 
 The installer is interactive even under `curl ... | sudo bash`. It reads prompts directly from `/dev/tty` so the pipe doesn't swallow them. Pick CLI, GUI, or both, then say yes/no to the shell hook and the sudoers rule. Falls back to non-interactive defaults only when there is genuinely no controlling terminal (headless CI, `nohup`, etc.).
 
+> Already-open terminals won't have the shell hook yet (new ones do). To activate it in the terminal you ran the installer from, run `source ~/.bashrc` (or `~/.zshrc` / `~/.config/fish/config.fish`). Without this, `phpvm shell <ver>` will print a "needs the shell wrapper" hint until you reload.
+
 Pin a specific tag or branch:
 
 ```bash
@@ -71,6 +73,8 @@ If you installed from a tarball (no recorded URL), you can pass one explicitly, 
 phpvm --self-update https://github.com/rijverse/phpvm.git
 phpvm --self-update https://github.com/rijverse/phpvm.git v2.2.0
 ```
+
+If you're working from a local clone you can re-run the installer directly with `sudo bash install.sh --upgrade` (alias `-U`). It reads `${HOOK_DIR}/install.meta`, replicates your prior CLI/GUI choice, and skips the shell-hook and sudoers prompts. Same code path `--self-update` runs after it pulls.
 
 ### What you need
 
@@ -241,6 +245,56 @@ username ALL=(ALL) NOPASSWD: /usr/bin/update-alternatives --set php /usr/bin/php
 The glob is intentionally narrow, it matches `php8.2` but not `phpunit` or `php-config`.
 
 If you skip the sudoers rule, `phpvm global` just asks for a password the normal way (and labels the prompt so you know who's asking). The GUI, which is global by nature, tries passwordless sudo first, then falls back to the polkit dialog.
+
+<details>
+<summary>What <code>phpvm --doctor</code> looks like</summary>
+
+`--doctor` walks every subsystem so you can spot what's wrong without grepping logs. Sample output on a healthy install:
+
+```
+phpvm --doctor  v2.5.1
+  user=alice  shell=bash  pwd=/home/alice/work/api
+
+▸ CLI install
+  ✓ phpvm at /usr/local/bin/phpvm  (v2.5.1)
+  ✓ bash 5.1.16(1)-release
+
+▸ PHP runtimes
+  ✓ update-alternatives: /usr/bin/update-alternatives
+  ✓ 3 PHP runtime(s) registered
+    php8.2 → 8.2.31
+    php8.3 → 8.3.31
+    php8.4 → 8.4.21
+  ✓ Active: php8.2  (/usr/bin/php8.2)
+  ✓ composer: Composer version 2.7.2
+
+▸ PHP-FPM
+  ✓ php8.2-fpm.service  active=active  enabled=enabled
+  ✓ php8.3-fpm.service  active=active  enabled=enabled
+
+▸ Sudo (auto-switch)
+  ✓ Sudoers rule at /etc/sudoers.d/phpvm
+  ✓ sudo -n update-alternatives works (passwordless)
+
+▸ Shell hook (auto-switch on cd)
+  ✓ Hook dir /etc/phpvm
+  ✓ bash hook sourced in ~/.bashrc
+
+▸ Per-shell switching (shim)
+  ✓ Shim at /etc/phpvm/shims/php
+  ✓ Shim dir on PATH
+
+▸ GUI / tray (optional)
+  ✓ phpvm-gui at /usr/local/bin/phpvm-gui
+  ✓ python3-gi importable, AppIndicator3 present
+
+▸ Project (cwd)
+  ✓ .php-version says 8.3  → php8.3 resolved
+```
+
+It covers thirteen checks across CLI install, PHP runtimes, FPM, sudo, hook, shim, GUI, and the current project. Each row is `✓` (ok), `!` (warn), `✗` (fail), or `-` (skipped, e.g. GUI not installed).
+
+</details>
 
 <details>
 <summary>If <code>phpvm</code> reports no versions installed</summary>

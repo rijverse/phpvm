@@ -3,6 +3,37 @@
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 is [SemVer](https://semver.org/).
 
+## [2.5.1] - 2026-05-28
+
+### Fixed
+
+- Uninstaller failed to stop a running `phpvm-gui` because `pgrep/pkill -x phpvm-gui` matched on `comm`, which is
+  `python3` (from the shebang), not `phpvm-gui`. The kill step was silently skipped, the binary got removed, and the
+  Python process kept its tray indicator registered on D-Bus, so the icon stuck around after uninstall. Switched to
+  `pgrep/pkill -f` with a tight cmdline pattern (`(^|[/ ])phpvm-gui( |$)` so it won't match unrelated processes that
+  happen to mention the name), plus a short post-TERM wait and a SIGKILL fallback if the GTK loop ignores SIGTERM.
+
+### Changed
+
+- `install.sh` now prints a prominent warning at the end when it has just added the shell hook, telling the user that
+  already-open terminals won't pick it up until they `source` their rc. New terminals work automatically. Replaces the
+  easy-to-miss dim one-liner that fired regardless. The same gotcha is now documented in README's "Installing" section.
+- Repo-wide typography sweep: removed all em dashes and Unicode ellipses from code, comments, prose, and CLI output
+  (62 occurrences). Replaced with commas, semicolons, colons, periods, or parentheses depending on the relationship of
+  the surrounding clauses; ellipses became ASCII `...`. Unicode arrows (`→`) kept as house style for status glyphs.
+
+### Docs
+
+- README: new `Installing` blockquote calling out the post-install `source ~/.bashrc` step for the terminal that ran
+  the installer, plus a new collapsed `<details>` block with sample `phpvm --doctor` output showing what each
+  subsystem check looks like on a healthy install. Documented `sudo bash install.sh --upgrade` / `-U` for local-clone
+  upgrades (same path `--self-update` runs after it pulls).
+- CONTRIBUTING: added the typography rule to ground rules, a Tests section listing `tests/test_cli.sh`,
+  `tests/test_gui.sh`, and `tests/local-compat.sh`, a CI pointer at `.github/workflows/compat.yml`, and a Changelog
+  section pointing PR authors at the `[Unreleased]` block.
+
+---
+
 ## [2.5.0] - 2026-05-28
 
 ### Added
@@ -89,7 +120,7 @@ is [SemVer](https://semver.org/).
 
 ### Fixed
 
-- `install.sh` prompts were silently skipped under `curl … | sudo bash` because piping replaces stdin with the pipe,
+- `install.sh` prompts were silently skipped under `curl ... | sudo bash` because piping replaces stdin with the pipe,
   making `[[ -t 0 ]]` return false even when a real terminal is attached. All interactivity checks now use
   `{ true < /dev/tty; } 2>/dev/null` to detect a controlling terminal instead of testing stdin, and all `read` calls
   redirect from `/dev/tty` directly. The one-line installer is now fully interactive, same prompts as running
@@ -98,7 +129,7 @@ is [SemVer](https://semver.org/).
 ### Changed
 
 - README: corrected the installer interactivity note to reflect `/dev/tty`-based detection.
-- README: added `## Uninstalling` section with a remote one-liner (`curl … | sudo bash`), local clone form, itemized list of
+- README: added `## Uninstalling` section with a remote one-liner (`curl ... | sudo bash`), local clone form, itemized list of
   what gets removed (binaries, hook dir, sudoers rule, desktop/autostart entries, icons, shell RC lines), RC backup
   behaviour, and the sudo-user note.
 
@@ -109,7 +140,7 @@ is [SemVer](https://semver.org/).
 ### Added
 
 - One-line remote installer: `install.sh` now self-bootstraps. When invoked without sibling repo files (e.g.
-  `curl -fsSL …/install.sh | sudo bash`), it git-clones the repo into a `mktemp -d`, retargets `SCRIPT_DIR` at the
+  `curl -fsSL .../install.sh | sudo bash`), it git-clones the repo into a `mktemp -d`, retargets `SCRIPT_DIR` at the
   clone, and continues in the same process so the EXIT trap removes the tmp dir on exit (no `exec`, no orphaned clone).
   `PHPVM_REMOTE` and `PHPVM_REF` env vars override the default repo URL and ref (`main`); falls back to a default-branch
   clone + `git fetch origin <ref> && checkout FETCH_HEAD` when `--branch <ref>` doesn't match a branch (so tags/SHAs
@@ -149,7 +180,7 @@ is [SemVer](https://semver.org/).
   never verified). Added a `bash -n` syntax gate across `phpvm.sh`, `install.sh`, `uninstall.sh`, and
   `shell/php-auto.bash`. Every `run:` block now uses `set -euo pipefail` so the changelog `awk` pipeline (and friends)
   can't silently produce empty output. `actions/checkout` and `softprops/action-gh-release` are pinned to commit SHAs
-  with version comments for supply-chain hardening. Dropped the `shellcheck … || true` step (lint that always passes is
+  with version comments for supply-chain hardening. Dropped the `shellcheck ... || true` step (lint that always passes is
   theater; lint lives in `compat.yml` now). Dropped the `files:` upload list and `fetch-depth: 0`; the installer and
   `phpvm --self-update` both bootstrap via `git clone`, never via release artifacts, so the per-file uploads were
   decorative; GitHub's auto-attached source tarball still covers the "I want a versioned download" case.
@@ -191,8 +222,8 @@ is [SemVer](https://semver.org/).
 
 ### Changed
 
-- Sudo prompts everywhere now carry a labeled `-p` string (`[phpvm] switching PHP — password for %u:`,
-  `[phpvm] restarting phpX.Y-fpm — password for %u:`) so users see who's asking when no nopasswd rule is set.
+- Sudo prompts everywhere now carry a labeled `-p` string (`[phpvm] switching PHP, password for %u:`,
+  `[phpvm] restarting phpX.Y-fpm, password for %u:`) so users see who's asking when no nopasswd rule is set.
 - Removed `sudo -n` quiet path and the rc=77 "password required" signaling from `do_switch` + `cmd_auto`. Shell-hook
   auto-switch is now plain `sudo`; passwordless if sudoers is configured, interactive prompt otherwise. Net: 60+ lines
   deleted from `phpvm.sh` and `phpvm-gui.py`.
@@ -226,7 +257,7 @@ is [SemVer](https://semver.org/).
 - `phpvm-gui` composer detection now shells out to `phpvm --auto --print` first so behavior matches the shell side
   exactly (supports `^`, `~`, ranges, `|`).
 - `install.sh` no longer prompts when stdin isn't a tty (defaults to CLI+GUI, skips sudoers/hook prompts); works under
-  `curl … | sudo bash`.
+  `curl ... | sudo bash`.
 - `uninstall.sh` cleans both `/usr/local/bin`/`/etc/phpvm` AND `~/.local/bin`/`~/.phpvm` instead of either/or.
 - `install.sh` rewrites `git@host:owner/repo` remote URLs to `https://host/owner/repo` when recording REPO_URL, so
   `phpvm --self-update` works without an ssh-agent.
@@ -244,7 +275,7 @@ is [SemVer](https://semver.org/).
 ### Security
 
 - Sudoers glob tightening (see Changed) closes the case where the old `php*` rule could authorize unrelated
-  `php-config` / `phpunit` binaries if they ever shipped at `/usr/bin/php…`.
+  `php-config` / `phpunit` binaries if they ever shipped at `/usr/bin/php...`.
 
 ---
 

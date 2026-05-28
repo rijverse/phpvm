@@ -36,7 +36,7 @@ ICONS=(
     "/usr/local/share/icons/hicolor/scalable/apps/phpvm.svg"
     "$HOME/.local/share/icons/hicolor/scalable/apps/phpvm.svg"
 )
-# honor sudo invocation — also clean caller's home if running as root
+# honor sudo invocation, also clean caller's home if running as root
 if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
     SUDO_HOME=$(getent passwd "$SUDO_USER" 2>/dev/null | cut -d: -f6)
     if [[ -n "$SUDO_HOME" && "$SUDO_HOME" != "$HOME" ]]; then
@@ -48,9 +48,20 @@ if [[ $EUID -eq 0 && -n "${SUDO_USER:-}" ]]; then
     fi
 fi
 
-# quit running phpvm-gui
-if pgrep -x phpvm-gui &>/dev/null; then
-    pkill -x phpvm-gui 2>/dev/null && success "Stopped phpvm-gui" || warn "Could not stop phpvm-gui"
+# quit running phpvm-gui. argv[0] is python3 (from the shebang), so pkill -x
+# phpvm-gui never matches; match the script path in the full cmdline instead.
+GUI_PATTERN='(^|[/ ])phpvm-gui( |$)'
+if pgrep -f "$GUI_PATTERN" &>/dev/null; then
+    pkill -f "$GUI_PATTERN" 2>/dev/null && success "Stopped phpvm-gui" || warn "Could not stop phpvm-gui"
+    # wait for the indicator to drop its D-Bus registration so the tray clears
+    for _ in 1 2 3 4 5; do
+        pgrep -f "$GUI_PATTERN" &>/dev/null || break
+        sleep 0.2
+    done
+    if pgrep -f "$GUI_PATTERN" &>/dev/null; then
+        warn "phpvm-gui still running, sending SIGKILL"
+        pkill -KILL -f "$GUI_PATTERN" 2>/dev/null || true
+    fi
 fi
 
 # remove binaries
@@ -122,7 +133,7 @@ for ic in "${ICONS[@]}"; do
         sudo rm -f "$ic"
     fi
     success "Removed ${ic}"
-    # icon path is .../hicolor/scalable/apps/phpvm.svg — strip 3 levels to get the hicolor theme root for gtk-update-icon-cache
+    # icon path is .../hicolor/scalable/apps/phpvm.svg; strip 3 levels to get the hicolor theme root for gtk-update-icon-cache
     ICON_DIRS_TO_REFRESH+=("$(dirname "$(dirname "$(dirname "$ic")")")")
 done
 if command -v gtk-update-icon-cache &>/dev/null; then
