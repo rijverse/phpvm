@@ -1,12 +1,12 @@
 #!/bin/bash
-# phpvm - PHP Version Manager v2.5.1
+# phpvm - PHP Version Manager v2.6.0
 
 if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 3) )); then
     echo "phpvm requires bash 4.3+. Current: ${BASH_VERSION}" >&2
     exit 1
 fi
 
-VERSION="2.5.1"
+VERSION="2.6.0"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -273,24 +273,112 @@ do_switch() {
 
 cmd_list() {
     require_update_alternatives
+    local show_paths=false as_json=false
+    for arg in "$@"; do
+        case "$arg" in
+            --paths) show_paths=true ;;
+            --json)  as_json=true ;;
+            --help|-h)
+                echo "Usage: phpvm --list [--paths|--json]"
+                echo "  (no flag)  human-readable, shows active marker"
+                echo "  --paths    add the absolute binary path column (for IDE / script use)"
+                echo "  --json     emit [{version,path,active}, ...] for tooling"
+                return 0
+                ;;
+        esac
+    done
+
     local current
     current=$(get_current_php)
     mapfile -t versions < <(get_php_versions)
 
     if [[ "${#versions[@]}" -eq 0 ]]; then
+        if [[ "$as_json" == "true" ]]; then
+            echo "[]"
+            return 0
+        fi
         echo -e "${RED}No PHP alternatives registered.${NC}" >&2
         exit 1
     fi
 
+    if [[ "$as_json" == "true" ]]; then
+        # hand-rolled JSON keeps the output dependency-free. fields are tight
+        # so jq/grep can consume it; no trailing comma; one object per line for
+        # readable diffs and easy line-wise tooling.
+        local first=true
+        echo "["
+        for v in "${versions[@]}"; do
+            local name="${v##*/}"
+            local ver="${name#php}"
+            local active="false"
+            [[ "$v" == "$current" ]] && active="true"
+            if [[ "$first" == "true" ]]; then first=false; else echo ","; fi
+            printf '  {"version":"%s","path":"%s","active":%s}' "$ver" "$v" "$active"
+        done
+        echo ""
+        echo "]"
+        return 0
+    fi
+
     for v in "${versions[@]}"; do
-        local name
-        name=$(basename "$v")
+        local name="${v##*/}"
+        local marker="   "; local style_open=""; local style_close=""
         if [[ "$v" == "$current" ]]; then
-            echo -e "  ${GREEN}●${NC} ${BOLD}${name}${NC}  ${DIM}(active)${NC}"
+            marker=" ${GREEN}●${NC}"
+            style_open="${BOLD}"
+            style_close="${NC}"
         else
-            echo -e "    ${DIM}${name}${NC}"
+            style_open="${DIM}"
+            style_close="${NC}"
+        fi
+        if [[ "$show_paths" == "true" ]]; then
+            local suffix=""
+            [[ "$v" == "$current" ]] && suffix="  ${DIM}(active)${NC}"
+            echo -e "  ${marker} ${style_open}${name}${style_close}  ${DIM}${v}${NC}${suffix}"
+        else
+            if [[ "$v" == "$current" ]]; then
+                echo -e "  ${marker} ${style_open}${name}${style_close}  ${DIM}(active)${NC}"
+            else
+                echo -e "  ${marker} ${style_open}${name}${style_close}"
+            fi
         fi
     done
+
+    # In --paths mode, point at the per-IDE recipes so the discovery path
+    # is one prompt away. Skipped for plain --list to keep that output tight.
+    if [[ "$show_paths" == "true" ]]; then
+        echo ""
+        echo -e "  ${DIM}Use these in your IDE's PHP interpreter setting.${NC}"
+        echo -e "  ${DIM}Per-IDE recipes: https://github.com/rijverse/phpvm#using-with-your-ide${NC}"
+    fi
+}
+
+# Print the absolute binary path for one installed version. Mirrors
+# `nvm which`, `pyenv which`, `rbenv which` so scripts and IDE config tools
+# can pipe the result directly into wherever a PHP interpreter path is
+# needed (PhpStorm, VS Code, Sublime LSP, NetBeans, Zed, CI configs, etc).
+# Output is the bare path on stdout, nothing else, so this composes.
+cmd_which() {
+    require_update_alternatives
+    local query="$1"
+    if [[ -z "$query" ]]; then
+        echo -e "${RED}Usage: phpvm which <version>${NC}" >&2
+        echo -e "${DIM}Example: phpvm which 8.2${NC}" >&2
+        exit 1
+    fi
+
+    local norm
+    norm=$(normalize_version "$query") || norm="$query"
+
+    local target
+    target=$(find_version_by_query "$norm") || target=$(find_version_by_query "$query")
+    if [[ -z "$target" ]]; then
+        echo -e "${RED}PHP ${query} is not installed.${NC}" >&2
+        echo -e "${DIM}Run: phpvm --list${NC}" >&2
+        exit 1
+    fi
+
+    echo "$target"
 }
 
 cmd_current() {
@@ -1361,7 +1449,8 @@ cmd_help() {
     echo ""
     echo -e "${BOLD}Usage:${NC}"
     echo -e "  phpvm                        Interactive TUI"
-    echo -e "  phpvm --list                 List installed PHP versions"
+    echo -e "  phpvm --list [--paths|--json] List installed PHP versions (add --paths or --json for IDE / tooling)"
+    echo -e "  phpvm which <version>        Print absolute binary path (e.g. /usr/bin/php8.2). Pipe into IDE config"
     echo -e "  phpvm --current              Show active PHP version (shell pin, project, global)"
     echo -e "  phpvm shell <version>        Switch this terminal only, no sudo (e.g. 8.2)"
     echo -e "  phpvm shell --unset          Drop the per-shell pin"
@@ -1661,7 +1750,10 @@ shift 2>/dev/null || true
 
 case "$CMD" in
     -l | --list)
-        cmd_list
+        cmd_list "$@"
+        ;;
+    which)
+        cmd_which "${1:-}"
         ;;
     -c | --current)
         cmd_current

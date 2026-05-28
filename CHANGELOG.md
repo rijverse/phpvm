@@ -3,6 +3,79 @@
 All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
 is [SemVer](https://semver.org/).
 
+## [2.6.0] - 2026-05-28
+
+### Added
+
+- `phpvm which <version>` prints the absolute binary path (e.g. `/usr/bin/php8.2`) for one installed PHP version.
+  Mirrors `nvm which` / `pyenv which` / `rbenv which` so scripts and IDE config tools can pipe the result straight
+  into wherever an interpreter path is needed (PhpStorm CLI Interpreter, VS Code `php.validate.executablePath`,
+  LSP-Intelephense `phpExecutablePath`, NetBeans interpreters, CI configs). Returns the bare path on stdout, nothing
+  else, so it composes. Accepts both `8.2` and `php8.2`.
+- `phpvm --list --paths` adds an absolute-path column next to each version, with the active marker preserved.
+  Designed for visual IDE setup: one command lists every interpreter you can register and where it lives. Includes
+  a dim footer pointing at the README's "Using with your IDE" section so the recipe is one prompt away.
+- `phpvm --list --json` emits `[{"version":"8.2","path":"/usr/bin/php8.2","active":true}, ...]` on a single pass:
+  dependency-free (no `jq` needed to produce), stable schema (`version` / `path` / `active`), one entry per
+  installed PHP, valid JSON ready for tooling and shell-scripted pipelines
+  (`jq -r '.[] | select(.active).path'`).
+- `phpvm shell <ver>` and `phpvm shell --unset` now emit a confirmation line via stderr ("pinned this terminal to
+  PHP 8.2." / "shell pin removed for this terminal."). Previously silent on success, which left users wondering
+  whether anything happened. The line is emitted inside the eval'd snippet so it preserves "after the eval"
+  ordering.
+- Inactive-shim hint: when `phpvm shell <ver>` succeeds but the shim isn't on PATH in the caller's terminal
+  (common scenario: terminal was opened before the hook landed), the eval'd snippet prints "shim not on PATH in
+  this terminal, so php still resolves to `<bin>`." plus the exact `source` command to activate it. The same
+  warning block shows up at the bottom of `phpvm --current` when a shell or project pin is set but `php` resolves
+  to a non-shim binary, so the layer view explains the mismatch users were hitting.
+- `tests/test_install.sh`: new behavioral suite (18 checks) for `install.sh` and `uninstall.sh`. Static guards
+  against the sudo-`$HOME` regression class, behavioral install in a fake HOME (writes to the right rc, no
+  leakage, idempotent on re-run, `--upgrade` restores a missing hook), uninstall round-trip (hook removed, backup
+  left, hook dir cleared), and a static + runtime check on the zsh hook (no `BASH_SOURCE` / `PROMPT_COMMAND`,
+  zsh-native chpwd handler, shim prepended, `phpvm()` defined). The runtime block auto-skips when zsh isn't
+  installed. Wired into `tests/local-compat.sh` so the docker matrix (Ubuntu 20.04 / 22.04 / 24.04) runs it; zsh
+  added to the apt install step.
+
+### Fixed
+
+- `install.sh` wrote the per-user rc + autostart files using `$HOME`, which under `sudo` points at `/root`. The
+  shell hook line landed in root's bashrc (or got silently dropped when that file didn't exist), so users who
+  ran `sudo ./install.sh` never got `source /etc/phpvm/php-auto.bash` in their own rc. `phpvm shell <ver>` then
+  printed the "needs the shell wrapper" guidance every time. Resolved by resolving `USER_HOME` and `USER_SHELL`
+  from `getent passwd "$CURRENT_USER"` when `EUID=0`, and writing the rc file via `sudo -u "$CURRENT_USER" tee -a`
+  so ownership stays with the invoking user. Same treatment for fish's `~/.config/fish/` directory creation.
+  Consolidated the duplicate `USER_HOME` resolution that the autostart block had been doing inline.
+- `install.sh --upgrade` silently skipped the shell-hook block entirely. Users hit by the prior `$HOME` bug
+  couldn't recover via `--upgrade` / `--self-update`; the hook stayed missing forever. Upgrade mode now writes
+  the hook line when it's missing (no prompt, since upgrade implies "I want this installed").
+- `shell/php-auto.zsh` was a copy of the bash hook and broken in zsh on two counts: `${BASH_SOURCE[0]}` is empty
+  outside bash so `_PHPVM_HOOK_DIR` resolved to the current working directory instead of the hook's own location,
+  and `PROMPT_COMMAND` doesn't exist in zsh so the cd auto-switch never fired. Rewrote using `${(%):-%x}` for the
+  script-self path (zsh prompt-expansion `%x`) and `add-zsh-hook chpwd _php_switcher_auto` (with an array-append
+  fallback for older zsh without the `add-zsh-hook` autoload). Idempotent on re-source: `add-zsh-hook -d chpwd`
+  first strips the prior registration, and the fallback path uses an `${array[(r)pattern]}` check to skip
+  duplicates.
+- `uninstall.sh` aborted at the first `sudo rm` when sudo couldn't prompt (running under `set -e` without a
+  controlling terminal, or with cached creds expired), leaving rc files unswept and `~/.phpvm` half-removed.
+  Wrapped removals in a new `_rm_path` helper that tries `sudo -n` (non-interactive), falls back to a regular
+  `sudo rm` with stderr suppressed, and warns + continues instead of failing the script. Result: a user without
+  active sudo creds still gets a usable partial uninstall (their own files cleaned, system files left alone with
+  a clear warning).
+
+### Changed
+
+- Internal cleanup: install.sh autostart block no longer duplicates the `USER_HOME` lookup; both that block and
+  the new shell-hook writer read from the single resolution near the top. No user-visible change.
+
+### Docs
+
+- README: new "Using with your IDE" section explaining why a GUI IDE doesn't pick up shell env vars, the three
+  primitives phpvm exposes (`which`, `--list --paths`, `--list --json`), and copy-pasteable recipes for PhpStorm,
+  VS Code (Intelephense / PHP Tools workspace settings), Sublime / Zed / Helix (LSP), NetBeans, and CI/`jq`.
+  States the reasoning (forward-compat: paths instead of IDE config files) so contributors don't try to add a
+  per-IDE config writer later. CLI table gains rows for `--list --paths`, `--list --json`, and `phpvm which`.
+- `--doctor` sample output in README bumped to v2.6.0.
+
 ## [2.5.1] - 2026-05-28
 
 ### Added

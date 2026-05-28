@@ -91,6 +91,9 @@ Keyboard-driven picker right where you live. <kbd>↑</kbd>/<kbd>↓</kbd> to mo
 |---|---|
 | `phpvm` | Opens the TUI |
 | `phpvm --list` | Lists installed PHP versions |
+| `phpvm --list --paths` | Same list with the absolute binary path next to each version (handy for IDE setup) |
+| `phpvm --list --json` | Emits `[{version,path,active}, ...]` for scripts and IDE tooling |
+| `phpvm which 8.2` | Prints the absolute path (e.g. `/usr/bin/php8.2`). Matches `nvm which` / `pyenv which` |
 | `phpvm --current` | Shows the effective version plus the shell / project / global breakdown |
 | `phpvm shell 8.2` | Switches **this terminal only**, no sudo (see [Per-shell switching](#per-shell-switching)) |
 | `phpvm shell --unset` | Drops the per-shell pin |
@@ -231,6 +234,58 @@ source /etc/phpvm/php-auto.fish      # or  ~/.phpvm/php-auto.fish
 
 </details>
 
+## Using with your IDE
+
+`phpvm shell` switches your terminal, but a GUI IDE doesn't read shell env vars. It pins its PHP interpreter in its own settings, snapshotted at IDE startup. So when you switch with `phpvm shell` or `phpvm global`, you also need to point the IDE at the right binary.
+
+phpvm gives you three primitives so any IDE or tool can wire in:
+
+```bash
+phpvm which 8.2          # /usr/bin/php8.2  (single path, parseable)
+phpvm --list --paths     # table: version + absolute path, active marker
+phpvm --list --json      # [{"version":"8.2","path":"/usr/bin/php8.2","active":true}, ...]
+```
+
+Why not a per-IDE helper? IDE config formats move between versions and installs (Toolbox vs standalone vs flatpak vs portable). Writing config files for you is brittle. Printing the paths you need is forward-compatible: every IDE accepts an absolute interpreter path.
+
+### PhpStorm
+**Settings > PHP > CLI Interpreter > "+" > Local...** and register one entry per installed version, using the rows from `phpvm --list --paths`. Name them `PHP 8.1`, `PHP 8.2`, etc. so the project picker stays readable.
+
+Then per project: **Settings > PHP > CLI Interpreter** to the one matching `.php-version`. On PhpStorm 2023.2+, enable **Settings > PHP > "Get PHP language level from composer.json / .php-version"** so opening a project auto-picks the interpreter.
+
+### VS Code (Intelephense / PHP Tools)
+Add to your workspace `.vscode/settings.json`:
+
+```json
+{
+  "php.validate.executablePath": "/usr/bin/php8.2",
+  "intelephense.environment.phpVersion": "8.2"
+}
+```
+
+The path comes from `phpvm which 8.2`. For multi-project setups, commit a per-project `.vscode/settings.json` alongside `.php-version`.
+
+### Sublime Text / Zed / Helix (LSP-Intelephense / phpactor)
+Set the language server's `phpExecutablePath` (or equivalent) to the output of `phpvm which <version>`. The exact setting name varies by client; the value is always an absolute path.
+
+### NetBeans
+**Tools > Options > PHP**, register each installed version's path from `phpvm --list --paths`, then pick per project under **Project Properties > PHP > Run Configuration**.
+
+### Scripts and CI
+
+```bash
+# active version's binary
+phpvm --list --json | jq -r '.[] | select(.active).path'
+
+# all installed PHP binaries
+phpvm --list --json | jq -r '.[].path'
+
+# binary for the version this project pins (.php-version / composer.json)
+phpvm which "$(phpvm --auto --print)"
+```
+
+`phpvm --list --json` is the contract for tooling: stable schema (`version`, `path`, `active`), one entry per installed PHP, dependency-free (no `jq` required to produce it, only to filter).
+
 ## About sudo
 
 Only the **global** switch needs sudo. `phpvm global` (and its `--set` alias) moves the system-wide `/usr/bin/php` symlink via `sudo update-alternatives --set php ...`. Per-shell (`phpvm shell`) and per-project (`phpvm local`) switching touch only your own environment, so they never ask for a password.
@@ -252,11 +307,11 @@ If you skip the sudoers rule, `phpvm global` just asks for a password the normal
 `--doctor` walks every subsystem so you can spot what's wrong without grepping logs. Sample output on a healthy install:
 
 ```
-phpvm --doctor  v2.5.1
+phpvm --doctor  v2.6.0
   user=alice  shell=bash  pwd=/home/alice/work/api
 
 ▸ CLI install
-  ✓ phpvm at /usr/local/bin/phpvm  (v2.5.1)
+  ✓ phpvm at /usr/local/bin/phpvm  (v2.6.0)
   ✓ bash 5.1.16(1)-release
 
 ▸ PHP runtimes

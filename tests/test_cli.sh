@@ -222,6 +222,125 @@ out=$(bash "$PHPVM" shell 8.3 2>&1); rc=$?
 [[ $rc -ne 0 && "$out" == *"enable-hook"* ]] \
     && ok "direct shell invoke points at --enable-hook" || fail "shell direct invoke wrong (rc=${rc}): ${out}"
 
+sep "which (no arg, expect usage error)"
+out=$(bash "$PHPVM" which 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"Usage"* ]] \
+    && ok "which without arg exits non-zero with usage" \
+    || fail "which no-arg wrong (rc=${rc}): ${out}"
+
+sep "which (uninstalled version, expect not-installed error)"
+out=$(bash "$PHPVM" which 9.99 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"not installed"* ]] \
+    && ok "which rejects an uninstalled version" \
+    || fail "which 9.99 wrong (rc=${rc}): ${out}"
+
+sep "which (installed version, prints bare path)"
+inst_which=$(update-alternatives --list php 2>/dev/null | grep -oE 'php[0-9]+\.[0-9]+' | head -1 | sed 's/php//')
+if [[ -n "$inst_which" ]]; then
+    out=$(bash "$PHPVM" which "$inst_which" 2>&1); rc=$?
+    [[ $rc -eq 0 && "$out" == "/usr/bin/php${inst_which}" ]] \
+        && ok "which ${inst_which} prints bare absolute path" \
+        || fail "which ${inst_which} wrong (rc=${rc}): ${out}"
+    # alt form: php8.X
+    out=$(bash "$PHPVM" which "php${inst_which}" 2>&1); rc=$?
+    [[ $rc -eq 0 && "$out" == "/usr/bin/php${inst_which}" ]] \
+        && ok "which php${inst_which} (php-prefixed form) also works" \
+        || fail "which php${inst_which} wrong (rc=${rc}): ${out}"
+else
+    ok "which test skipped (no installed PHP)"
+fi
+
+sep "--list --paths column"
+out=$(bash "$PHPVM" --list --paths 2>&1); rc=$?
+if [[ -n "$inst_which" ]]; then
+    plain=$(echo "$out" | sed -E $'s/\x1b\\[[0-9;]*m//g')
+    if echo "$plain" | grep -qE "php${inst_which} +/usr/bin/php${inst_which}"; then
+        ok "--list --paths shows the absolute path next to the version"
+    else
+        fail "--list --paths missing path column: ${plain}"
+    fi
+else
+    [[ $rc -ne 0 || "$out" == *"No PHP"* ]] \
+        && ok "--list --paths exits cleanly when no PHP installed" \
+        || fail "--list --paths wrong with no PHP: ${out}"
+fi
+
+sep "--list --paths includes a discoverable IDE-setup pointer"
+out=$(bash "$PHPVM" --list --paths 2>&1)
+if [[ -n "$inst_which" ]]; then
+    [[ "$out" == *"Per-IDE recipes"* || "$out" == *"using-with-your-ide"* ]] \
+        && ok "--list --paths points at the per-IDE recipes section" \
+        || fail "--list --paths missing IDE pointer: ${out}"
+fi
+
+sep "--list (no flag) does NOT include the IDE pointer (keep plain output tight)"
+out=$(bash "$PHPVM" --list 2>&1)
+if [[ -n "$inst_which" ]]; then
+    [[ "$out" != *"Per-IDE recipes"* ]] \
+        && ok "plain --list stays free of IDE setup noise" \
+        || fail "plain --list leaked the IDE pointer: ${out}"
+fi
+
+sep "--list --json output stays machine-clean (no tip leakage)"
+out=$(bash "$PHPVM" --list --json 2>&1)
+if [[ -n "$inst_which" ]]; then
+    [[ "$out" != *"Per-IDE recipes"* && "$out" != *"using-with-your-ide"* ]] \
+        && ok "JSON output free of human-readable tip lines" \
+        || fail "JSON output leaked tip: ${out}"
+fi
+
+sep "--list --json output is valid JSON"
+out=$(bash "$PHPVM" --list --json 2>&1)
+if command -v python3 &>/dev/null; then
+    if echo "$out" | python3 -c "
+import json, sys
+data = json.load(sys.stdin)
+assert isinstance(data, list), 'top level must be array'
+for entry in data:
+    assert set(entry.keys()) >= {'version','path','active'}, f'missing keys in {entry}'
+    assert isinstance(entry['active'], bool), 'active must be bool'
+    assert entry['path'].startswith('/'), 'path must be absolute'
+print('OK')
+" 2>/dev/null | grep -q OK; then
+        ok "--list --json is valid JSON with version/path/active fields"
+    else
+        fail "--list --json failed schema check: ${out}"
+    fi
+else
+    # python missing; do a basic structural check instead
+    if echo "$out" | grep -q '^\['; then
+        ok "--list --json starts with [ (basic shape)"
+    else
+        fail "--list --json not array-shaped: ${out}"
+    fi
+fi
+
+sep "--list --json marks exactly one entry active when alternatives are set"
+if [[ -n "$inst_which" ]] && command -v python3 &>/dev/null; then
+    active_count=$(bash "$PHPVM" --list --json | python3 -c "
+import json, sys
+print(sum(1 for e in json.load(sys.stdin) if e['active']))
+")
+    [[ "$active_count" -le 1 ]] \
+        && ok "--list --json shows at most one active entry (got ${active_count})" \
+        || fail "--list --json marked multiple active entries: ${active_count}"
+fi
+
+sep "which / --list flags in --help"
+out=$(bash "$PHPVM" --help 2>&1)
+[[ "$out" == *"phpvm which"* ]] \
+    && ok "which documented in --help" \
+    || fail "which not in --help"
+[[ "$out" == *"--paths"* && "$out" == *"--json"* ]] \
+    && ok "--paths and --json documented in --help" \
+    || fail "--list flags not in --help"
+
+sep "phpstorm-list removed (regression: vendor-specific command should not exist)"
+out=$(bash "$PHPVM" phpstorm-list 2>&1); rc=$?
+[[ $rc -ne 0 && "$out" == *"Unknown option"* ]] \
+    && ok "phpstorm-list correctly rejected as unknown" \
+    || fail "phpstorm-list still accepted (rc=${rc}): ${out}"
+
 sep "shim (shell/shim-php)"
 SHIM="$(dirname "$PHPVM")/shell/shim-php"
 if [[ ! -x "$SHIM" ]]; then
