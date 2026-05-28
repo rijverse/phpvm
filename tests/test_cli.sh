@@ -190,6 +190,45 @@ else
     fi
 fi
 
+sep "hook prepends shim dir to PATH at position 0"
+HOOK_BASH="$(dirname "$PHPVM")/shell/php-auto.bash"
+if [[ ! -f "$HOOK_BASH" ]]; then
+    fail "bash hook not found: $HOOK_BASH"
+else
+    # simulate a hostile PATH: shim is present but demoted by /bin in front.
+    # use a tmp dir as the hook dir so the test does not depend on /etc/phpvm.
+    hook_tmpd=$(mktemp -d)
+    mkdir -p "$hook_tmpd/shims"
+    cp "$HOOK_BASH" "$hook_tmpd/php-auto.bash"
+    : > "$hook_tmpd/shims/php"; chmod +x "$hook_tmpd/shims/php"
+    out=$(bash -c "
+        export PATH=\"/bin:${hook_tmpd}/shims:/usr/local/bin:/usr/bin:/bin\"
+        source \"${hook_tmpd}/php-auto.bash\"
+        echo \"\$PATH\"
+    ")
+    case "$out" in
+        "${hook_tmpd}/shims:"*)
+            ok "hook forces shim dir to PATH position 0 even when already present later" ;;
+        *)
+            fail "hook did not move shim to position 0: ${out}" ;;
+    esac
+
+    # idempotence: sourcing twice must not duplicate the shim entry
+    out=$(bash -c "
+        export PATH=\"/bin:/usr/bin\"
+        source \"${hook_tmpd}/php-auto.bash\"
+        source \"${hook_tmpd}/php-auto.bash\"
+        source \"${hook_tmpd}/php-auto.bash\"
+        echo \"\$PATH\"
+    ")
+    count=$(echo "$out" | tr ':' '\n' | grep -c "^${hook_tmpd}/shims$")
+    [[ "$count" -eq 1 ]] \
+        && ok "hook is idempotent on re-source (shim dir appears once)" \
+        || fail "hook duplicated shim dir on re-source (count=${count}): ${out}"
+
+    rm -rf "$hook_tmpd"
+fi
+
 sep "bash version guard"
 guard=$(grep -c "BASH_VERSINFO" "$PHPVM") 2>/dev/null || guard=0
 [[ "$guard" -ge 1 ]] \

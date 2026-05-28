@@ -7,10 +7,15 @@
 # locate this hook's own directory so we can find the shim dir next to it
 set -l _phpvm_hook_dir (dirname (status -f))
 
-# put the shim dir on PATH once, ahead of /usr/bin, so `php` hits our shim
+# put the shim dir at the FRONT of PATH so `php` hits our shim. Some setups
+# (login shells that re-prepend /bin via /etc/environment, snap profile.d
+# scripts, IDE-injected PATH) demote the shim if we only check "is it anywhere
+# in PATH". Force position 0, stripping any stale copies first so PATH does
+# not grow on re-source.
 if test -d "$_phpvm_hook_dir/shims"
-    if not contains -- "$_phpvm_hook_dir/shims" $PATH
-        set -gx PATH "$_phpvm_hook_dir/shims" $PATH
+    set -l _phpvm_shim "$_phpvm_hook_dir/shims"
+    if test (count $PATH) -eq 0; or test "$PATH[1]" != "$_phpvm_shim"
+        set -gx PATH $_phpvm_shim (string match -v -- "$_phpvm_shim" $PATH)
     end
 end
 

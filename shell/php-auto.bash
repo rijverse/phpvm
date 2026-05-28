@@ -6,11 +6,24 @@
 # locate this hook's own directory so we can find the shim dir next to it
 _PHPVM_HOOK_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)"
 
-# put the shim dir on PATH once, ahead of /usr/bin, so `php` hits our shim
-case ":${PATH}:" in
-    *":${_PHPVM_HOOK_DIR}/shims:"*) ;;
-    *) [ -d "${_PHPVM_HOOK_DIR}/shims" ] && export PATH="${_PHPVM_HOOK_DIR}/shims:${PATH}" ;;
-esac
+# put the shim dir at the FRONT of PATH so `php` hits our shim. Some setups
+# (login shells that re-prepend /bin via /etc/environment, snap profile.d
+# scripts, IDE-injected PATH) demote the shim if we only check "is it anywhere
+# in PATH". Force position 0, stripping any stale copies first so PATH does
+# not grow on re-source.
+if [ -d "${_PHPVM_HOOK_DIR}/shims" ]; then
+    case ":${PATH}:" in
+        ":${_PHPVM_HOOK_DIR}/shims:"*) ;;
+        *)
+            _phpvm_p=":${PATH}:"
+            _phpvm_p="${_phpvm_p//:${_PHPVM_HOOK_DIR}\/shims:/:}"
+            _phpvm_p="${_phpvm_p#:}"
+            _phpvm_p="${_phpvm_p%:}"
+            export PATH="${_PHPVM_HOOK_DIR}/shims${_phpvm_p:+:${_phpvm_p}}"
+            unset _phpvm_p
+            ;;
+    esac
+fi
 
 # wrapper: `phpvm shell` and the bare TUI must change the current shell, so they
 # run through eval; everything else goes straight to the binary.
