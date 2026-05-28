@@ -5,6 +5,15 @@ is [SemVer](https://semver.org/).
 
 ## [2.5.1] - 2026-05-28
 
+### Added
+
+- `install.sh` now launches `phpvm-gui` immediately after installation when the user selected GUI (options 2 or 3).
+  Runs in the background with `nohup` + `disown` so the tray icon appears without the installer blocking. When run
+  under `sudo`, `DISPLAY` is typically stripped by sudo's env reset; the installer recovers it (along with
+  `DBUS_SESSION_BUS_ADDRESS`) by scanning `/proc/<pid>/environ` for one of the invoking user's running processes,
+  then launches as the real user via `sudo -u`. Skipped silently in non-interactive mode (CI/scripts) or when
+  `python3-gi` is absent.
+
 ### Fixed
 
 - Shell hook only ensured the shim dir was *somewhere* in `PATH`, not first. On boxes where something prepends `/bin:`

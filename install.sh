@@ -407,4 +407,43 @@ if (( HOOK_ADDED )); then
     warn "${BOLD}Already open terminals won't have the hook yet${NC} (new ones do)."
     echo -e "    ${DIM}Activate it here:${NC} ${BOLD}source ${RC}${NC}"
 fi
+
+# launch gui immediately after install
+if [[ "$INSTALL_GUI" == "true" ]] && (( INTERACTIVE )); then
+    _DISPLAY="${DISPLAY:-}"
+    _WAYLAND="${WAYLAND_DISPLAY:-}"
+    _DBUS="${DBUS_SESSION_BUS_ADDRESS:-}"
+
+    # sudo strips DISPLAY; recover it from the user's running session
+    if [[ $EUID -eq 0 ]] && [[ -z "$_DISPLAY" ]] && [[ -z "$_WAYLAND" ]]; then
+        while IFS= read -r _pid; do
+            [[ -r "/proc/$_pid/environ" ]] || continue
+            _env=$(tr '\0' '\n' < "/proc/$_pid/environ" 2>/dev/null)
+            _d=$(printf '%s\n' "$_env" | grep '^DISPLAY=' | head -1 | cut -d= -f2)
+            [[ -z "$_d" ]] && continue
+            _DISPLAY="$_d"
+            _DBUS=$(printf '%s\n' "$_env" | grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 | cut -d= -f2-)
+            break
+        done < <(pgrep -u "$CURRENT_USER" 2>/dev/null | head -10)
+    fi
+
+    if [[ -n "$_DISPLAY" ]] || [[ -n "$_WAYLAND" ]]; then
+        if python3 -c "import gi" &>/dev/null; then
+            echo ""
+            info "Starting phpvm-gui..."
+            if [[ $EUID -eq 0 ]]; then
+                sudo -u "$CURRENT_USER" env \
+                    DISPLAY="$_DISPLAY" \
+                    WAYLAND_DISPLAY="$_WAYLAND" \
+                    DBUS_SESSION_BUS_ADDRESS="$_DBUS" \
+                    nohup "$BIN_DIR/phpvm-gui" >/dev/null 2>&1 &
+            else
+                nohup "$BIN_DIR/phpvm-gui" >/dev/null 2>&1 &
+            fi
+            disown
+            success "phpvm-gui started"
+        fi
+    fi
+fi
+
 echo ""
