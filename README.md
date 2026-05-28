@@ -78,7 +78,7 @@ If you're working from a local clone you can re-run the installer directly with 
 
 ### What you need
 
-- Linux with `update-alternatives`. Tested on **Ubuntu 20.04 / 22.04 / 24.04** in CI; **Debian 11+** and Ubuntu derivatives (Mint, Pop!_OS, Zorin, elementary) on the equivalent releases should work too.
+- Linux with `update-alternatives`. Tested on **Ubuntu 20.04 / 22.04 / 24.04** in CI, and **Debian 11+** and Ubuntu derivatives (Mint, Pop!_OS, Zorin, elementary) on the equivalent releases should work too.
 - Bash 4.3+ (uses `local -n`).
 - For the GUI: `python3-gi`, GTK3, AppIndicator3. The install command is in the GUI section below.
 
@@ -131,7 +131,7 @@ It picks the repo from your distro:
 - **Ubuntu** (and derivatives like Mint, Pop!_OS): Ondřej Surý's PPA, `ppa:ondrej/php`.
 - **Debian**: the [deb.sury.org](https://deb.sury.org) repo, keyring under `/etc/apt/keyrings/` and a `[signed-by=...]` source list pinned to your release.
 
-Versions are `X.Y` (or `latest`); patch levels like `8.2.13` are rejected. `apt` runs under a normal `sudo` password prompt. `install` never touches the passwordless sudoers rule, which stays scoped to `update-alternatives --set`. After installing it offers to switch (or pass `--use` / `--yes` for non-interactive runs).
+Versions are `X.Y` (or `latest`), and patch levels like `8.2.13` are rejected. `apt` runs under a normal `sudo` password prompt. `install` never touches the passwordless sudoers rule, which stays scoped to `update-alternatives --set`. After installing it offers to switch (or pass `--use` / `--yes` for non-interactive runs).
 
 Other distros aren't supported: install PHP with your own package manager and phpvm will pick it up via `update-alternatives`.
 
@@ -150,7 +150,7 @@ phpvm shell 8.3     # ...and this one on 8.3, at the same time
 phpvm shell --unset # back to the project / global default
 ```
 
-Two terminals can run two PHP versions at once. It works the way rbenv, pyenv, and asdf do: a tiny `php` shim on your `PATH` reads a `PHPVM_SHELL_VERSION` env var and execs the matching `/usr/bin/phpX.Y`. The shim and the `phpvm()` shell wrapper come from the shell hook, so this needs the hook enabled (the installer does that by default; otherwise run `phpvm --enable-hook`).
+Two terminals can run two PHP versions at once. It works the way rbenv, pyenv, and asdf do: a tiny `php` shim on your `PATH` reads a `PHPVM_SHELL_VERSION` env var and execs the matching `/usr/bin/phpX.Y`. The shim and the `phpvm()` shell wrapper come from the shell hook, so this needs the hook enabled (the installer does that by default, or you can run `phpvm --enable-hook`).
 
 Resolution order, highest priority first:
 
@@ -194,7 +194,7 @@ The window view shows each version with:
 
 Each row gets buttons for **Switch** and **Restart FPM**. There's also a project auto-detect button and a folder picker for one-off switches. Hover a row and the tooltip tells you which `php.ini` it would load.
 
-About FPM restart: it tries passwordless `sudo` first, and if that fails it pops the polkit auth dialog (`pkexec`). Either works; nothing else needed.
+About FPM restart: it tries passwordless `sudo` first, and if that fails it pops the polkit auth dialog (`pkexec`). Either works, and nothing else is needed.
 
 ## Per-project PHP
 
@@ -219,7 +219,7 @@ phpvm --disable-hook           # undo, rc backed up
 <details>
 <summary>If you'd rather edit your rc yourself</summary>
 
-System install lives under `/etc/phpvm`; user install lives under `~/.phpvm`. Source whichever exists:
+System install lives under `/etc/phpvm`, and user install lives under `~/.phpvm`. Source whichever exists:
 
 ```bash
 # bash
@@ -266,7 +266,7 @@ Add to your workspace `.vscode/settings.json`:
 The path comes from `phpvm which 8.2`. For multi-project setups, commit a per-project `.vscode/settings.json` alongside `.php-version`.
 
 ### Sublime Text / Zed / Helix (LSP-Intelephense / phpactor)
-Set the language server's `phpExecutablePath` (or equivalent) to the output of `phpvm which <version>`. The exact setting name varies by client; the value is always an absolute path.
+Set the language server's `phpExecutablePath` (or equivalent) to the output of `phpvm which <version>`. The exact setting name varies by client, and the value is always an absolute path.
 
 ### NetBeans
 **Tools > Options > PHP**, register each installed version's path from `phpvm --list --paths`, then pick per project under **Project Properties > PHP > Run Configuration**.
@@ -362,7 +362,7 @@ sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.2 82
 sudo update-alternatives --install /usr/bin/php php /usr/bin/php8.1 81
 ```
 
-The number at the end is the priority; higher wins when nothing is explicitly selected.
+The number at the end is the priority, where higher wins when nothing is explicitly selected.
 
 </details>
 
@@ -428,7 +428,7 @@ Roughly in priority order. The top two are planned in detail in [ROADMAP.md](ROA
 - [ ] **Extension manager**: `phpvm ext install xdebug redis imagick` per version, with the matching `php<ver>-<ext>` packages and ini wiring. None of the existing PHP version managers do this well.
 - [ ] **`phpvm exec <ver> <cmd>`**: run a one-off in a specific version without switching, like `nvm exec`. Handy for CI and quick sanity checks.
 - [ ] **Shell completion**: bash/zsh/fish completion for `shell`, `global`, `install`, etc. so `phpvm global <TAB>` lists installed versions.
-- [ ] **`phpvm install --lts` alias**: track the moving LTS target without remembering version numbers. Needs a maintained EOL table; `latest` ships with install above.
+- [ ] **`phpvm install --lts` alias**: track the moving LTS target without remembering version numbers. Needs a maintained EOL table, and `latest` ships with install above.
 
 ## Contributing
 

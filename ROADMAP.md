@@ -1,7 +1,7 @@
 # phpvm Roadmap
 
 Detailed companion to the Roadmap checklist in [README.md](README.md). Items are
-in the same order as the README. The top two are fully specced; the rest are
+in the same order as the README. The top two are fully specced, and the rest are
 idea-stage notes so the whole picture lives in one place.
 
 ## Status overview
@@ -23,7 +23,7 @@ so the order is flexible.
 
 Drive the upstream PHP repos so users stop hand-running `apt install`. Independent
 of the per-shell inversion, lower risk, roadmap priority #1. The spec below is what
-shipped; `cmd_install` and its helpers (`detect_distro_repo`, `ensure_php_repo`,
+shipped, including `cmd_install` and its helpers (`detect_distro_repo`, `ensure_php_repo`,
 `_assemble_packages`) live in `phpvm.sh`.
 
 ### Repo / distro detection
@@ -43,8 +43,8 @@ Reads `/etc/os-release`:
    message style.
 2. Idempotency. If `/usr/bin/php8.3` exists or it's already registered in
    `update-alternatives`, report and offer `phpvm shell` / `global`.
-3. Assemble the package set. Default is `php8.3-cli php8.3-common php8.3-fpm`;
-   `--minimal` drops fpm; `--with curl,mbstring,...` appends `php8.3-<ext>`.
+3. Assemble the package set. Default is `php8.3-cli php8.3-common php8.3-fpm`, where
+   `--minimal` drops fpm, and `--with curl,mbstring,...` appends `php8.3-<ext>`.
 4. Confirm interactively (repo-to-add plus packages), reading from `/dev/tty` like
    `install.sh` does. `--yes` skips for non-interactive.
 5. Configure the repo only if `apt-cache show php8.3-cli` is empty, then
@@ -78,7 +78,7 @@ Reads `/etc/os-release`:
 
 ## 2. Per-shell switching, as the new default (v2.5.0) - shipped
 
-The architectural inversion. Shipped in v2.5.0; the spec below is what landed.
+The architectural inversion. Shipped in v2.5.0, and the spec below is what landed.
 The shim lives at `shell/shim-php` (installed to `<hook dir>/shims/php`), the
 `phpvm()` wrapper and cd-hook rewrite are in `shell/php-auto.{bash,zsh,fish}`,
 and the verbs (`shell`, `sh-shell`, `local`, `global`) are in `phpvm.sh`.
@@ -114,7 +114,10 @@ back to `/usr/bin/php`:
 ```sh
 #!/bin/sh
 v="${PHPVM_SHELL_VERSION:-$PHPVM_AUTO_VERSION}"
-if [ -n "$v" ] && [ -x "/usr/bin/php$v" ]; then exec "/usr/bin/php$v" "$@"; fi
+if [ -n "$v" ] && [ -x "/usr/bin/php$v" ]
+then
+    exec "/usr/bin/php$v" "$@"
+fi
 exec /usr/bin/php "$@"
 ```
 
@@ -149,7 +152,7 @@ for normal use.
 ### Components
 
 - Shim at `<HOOK_DIR>/shims/php` (see the resolution model above), with the shims
-  dir prepended to PATH by the hook. Round 1 ships `php` only; `php-config`,
+  dir prepended to PATH by the hook. Round 1 ships `php` only, with `php-config`,
   `phpize` and `phar` are easy follow-ups.
 - A `phpvm()` wrapper in `php-auto.{bash,zsh,fish}`. It routes `shell` through
   `eval "$(command phpvm sh-shell ...)"` and sends everything else straight to the
@@ -160,7 +163,7 @@ for normal use.
   skips entirely when `PHPVM_SHELL_VERSION` is set, so an explicit pin wins.
 - Binary verbs: `cmd_global` (today's `do_switch` / `--set`), `cmd_local` (today's
   `--set-project`), `cmd_sh_shell` (validates the version, emits
-  `export PHPVM_SHELL_VERSION=<v>` or `echo '... not installed' >&2; false`), and
+  `export PHPVM_SHELL_VERSION=<v>` or `echo '... not installed' >&2 && false`), and
   `cmd_shell` (direct-invoke help via tty detection).
 - TUI: Enter pins the shell, the new default. Implemented the fzf way: draw to
   `/dev/tty`, print only the `export ...` line to stdout, and let the wrapper run
@@ -248,5 +251,5 @@ available ones. Not specced yet.
 
 Track the moving LTS target without remembering version numbers. Deferred because
 it needs a maintained EOL/support table to know which minor counts as "LTS" at any
-given time. `latest` ships with item 1; `--lts` waits until the install flow is
+given time. `latest` ships with item 1, and `--lts` waits until the install flow is
 solid and we've decided how to source EOL data.

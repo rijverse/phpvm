@@ -19,10 +19,10 @@ bash phpvm.sh
 ## A few ground rules
 
 - Keep `phpvm.sh` self-contained. No dependencies beyond `update-alternatives` and standard bash tools
-- Target Bash 4.3+ (`local -n` is required); avoid 5-only builtins
+- Target Bash 4.3+ (`local -n` is required), avoiding 5-only builtins
 - Don't break keyboard navigation in the TUI
 - Run `shellcheck phpvm.sh` before opening a PR and fix everything it flags
-- Plain ASCII punctuation in code, comments, prose, and CLI output: no em dashes, en dashes, or Unicode ellipses. Use commas, semicolons, colons, periods, parentheses, or `...`. Unicode arrows (`→`) are house style and stay
+- Plain ASCII punctuation in code, comments, prose, and CLI output: no em dashes, en dashes, or Unicode ellipses. Use commas, colons, periods, parentheses, or `...`. Unicode arrows (`→`) are house style and stay
 
 ## Tests
 
@@ -46,8 +46,8 @@ CI runs the same two suites across the three Ubuntu versions via `.github/workfl
 
 Any change to `shell/php-auto.bash`, `shell/php-auto.zsh`, `shell/php-auto.fish`, or `shell/shim-php` must include a corresponding test in `tests/test_cli.sh` that **sources the hook** (do not just lint or grep it) and asserts the behavior end to end. Cover both the success path and a hostile environment that exercises the change. For PATH-touching changes, that means at minimum:
 
-- assert `/etc/phpvm/shims` (or the per-test hook dir) ends up at PATH position 0, not just "somewhere in PATH";
-- pre-populate PATH with an entry that would shadow the shim (e.g. `/bin:` first) and confirm the hook still wins;
+- assert `/etc/phpvm/shims` (or the per-test hook dir) ends up at PATH position 0, not just "somewhere in PATH",
+- pre-populate PATH with an entry that would shadow the shim (e.g. `/bin:` first) and confirm the hook still wins,
 - source the hook two or three times back-to-back and confirm the shim entry appears exactly once (idempotence).
 
 This rule exists because v2.5.1 shipped a hook regression that passed all 33 existing tests: the hook was never sourced under test, the shim binary was tested in isolation, and the bug only manifested when an environmental actor (PAM, snap profile.d, IDE) prepended to PATH after the hook ran. A naive "did the hook add the shim?" test would have passed against the broken code.

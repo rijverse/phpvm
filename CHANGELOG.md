@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning
+All notable changes to phpvm. Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), versioning
 is [SemVer](https://semver.org/).
 
 ## [2.6.0] - 2026-05-28
@@ -33,7 +33,7 @@ is [SemVer](https://semver.org/).
   leakage, idempotent on re-run, `--upgrade` restores a missing hook), uninstall round-trip (hook removed, backup
   left, hook dir cleared), and a static + runtime check on the zsh hook (no `BASH_SOURCE` / `PROMPT_COMMAND`,
   zsh-native chpwd handler, shim prepended, `phpvm()` defined). The runtime block auto-skips when zsh isn't
-  installed. Wired into `tests/local-compat.sh` so the docker matrix (Ubuntu 20.04 / 22.04 / 24.04) runs it; zsh
+  installed. Wired into `tests/local-compat.sh` so the docker matrix (Ubuntu 20.04 / 22.04 / 24.04) runs it, zsh
   added to the apt install step.
 
 ### Fixed
@@ -46,7 +46,7 @@ is [SemVer](https://semver.org/).
   so ownership stays with the invoking user. Same treatment for fish's `~/.config/fish/` directory creation.
   Consolidated the duplicate `USER_HOME` resolution that the autostart block had been doing inline.
 - `install.sh --upgrade` silently skipped the shell-hook block entirely. Users hit by the prior `$HOME` bug
-  couldn't recover via `--upgrade` / `--self-update`; the hook stayed missing forever. Upgrade mode now writes
+  couldn't recover via `--upgrade` / `--self-update` and the hook stayed missing forever. Upgrade mode now writes
   the hook line when it's missing (no prompt, since upgrade implies "I want this installed").
 - `shell/php-auto.zsh` was a copy of the bash hook and broken in zsh on two counts: `${BASH_SOURCE[0]}` is empty
   outside bash so `_PHPVM_HOOK_DIR` resolved to the current working directory instead of the hook's own location,
@@ -64,7 +64,7 @@ is [SemVer](https://semver.org/).
 
 ### Changed
 
-- Internal cleanup: install.sh autostart block no longer duplicates the `USER_HOME` lookup; both that block and
+- Internal cleanup: install.sh autostart block no longer duplicates the `USER_HOME` lookup, as both that block and
   the new shell-hook writer read from the single resolution near the top. No user-visible change.
 
 ### Docs
@@ -82,7 +82,7 @@ is [SemVer](https://semver.org/).
 
 - `install.sh` now launches `phpvm-gui` immediately after installation when the user selected GUI (options 2 or 3).
   Runs in the background with `nohup` + `disown` so the tray icon appears without the installer blocking. When run
-  under `sudo`, the session env is mostly stripped; the installer harvests the full set it needs (`DISPLAY`,
+  under `sudo`, the session env is mostly stripped, so the installer harvests the full set it needs (`DISPLAY`,
   `WAYLAND_DISPLAY`, `XDG_RUNTIME_DIR`, `XDG_SESSION_TYPE`, `XDG_CURRENT_DESKTOP`, `XDG_DATA_DIRS`,
   `XDG_CONFIG_DIRS`, `XAUTHORITY`, `DBUS_SESSION_BUS_ADDRESS`) from a user-owned graphical process via
   `/proc/<pid>/environ` and re-launches as the real user with `sudo -u env ...`. Without `XDG_RUNTIME_DIR` the
@@ -110,7 +110,7 @@ is [SemVer](https://semver.org/).
   already-open terminals won't pick it up until they `source` their rc. New terminals work automatically. Replaces the
   easy-to-miss dim one-liner that fired regardless. The same gotcha is now documented in README's "Installing" section.
 - Repo-wide typography sweep: removed all em dashes and Unicode ellipses from code, comments, prose, and CLI output
-  (62 occurrences). Replaced with commas, semicolons, colons, periods, or parens; ellipses became ASCII `...`. Unicode
+  (62 occurrences). Replaced with commas, colons, periods, or parens, and ellipses became ASCII `...`. Unicode
   arrows (`→`) kept as house style for status glyphs.
 
 ### Docs
@@ -134,10 +134,10 @@ is [SemVer](https://semver.org/).
   (installed to `<hook dir>/shims/php`) reads `PHPVM_SHELL_VERSION` and execs the matching `/usr/bin/phpX.Y`, falling
   back to the global symlink. `phpvm shell --unset` drops the pin.
 - `phpvm local <ver>` and `phpvm global <ver>` as the project and system-wide verbs. `local` writes `.php-version`
-  (no sudo); `global` moves the `update-alternatives` symlink (sudo). The old `--set` and `--set-project` flags stay as
+  (no sudo), and `global` moves the `update-alternatives` symlink (sudo). The old `--set` and `--set-project` flags stay as
   aliases, so existing usage and scripts keep working.
 - A `php` shim template (`shell/shim-php`) plus a `phpvm()` shell wrapper in each hook. The wrapper routes `shell` and
-  the bare TUI through `eval` (fish uses `| source`) so they can change the current shell; everything else calls the
+  the bare TUI through `eval` (fish uses `| source`) so they can change the current shell, while everything else calls the
   binary directly.
 - Resolution is now three layers: shell pin (`PHPVM_SHELL_VERSION`), then project (`PHPVM_AUTO_VERSION`, set by the
   cd-hook from `.php-version` / `composer.json`), then the global symlink. An explicit shell pin always wins, so it is
@@ -162,7 +162,7 @@ is [SemVer](https://semver.org/).
 - `phpvm install` no longer risks hanging on an unattended `--yes` run. apt is now invoked as
   `sudo env DEBIAN_FRONTEND=noninteractive apt-get ...`, so a package postinst (e.g. tzdata) can't block on an
   interactive debconf prompt. `sudo` resets the environment, which is why the frontend is set through `env` rather than
-  an inline assignment; apt stays password-gated exactly as before.
+  an inline assignment, and apt stays password-gated exactly as before.
 
 ---
 
@@ -172,10 +172,10 @@ is [SemVer](https://semver.org/).
 
 - `phpvm install <ver>` installs a PHP minor version from the upstream repo so you no longer hand-run `apt install`.
   Detects the distro from `/etc/os-release`: Ubuntu (and derivatives carrying `ubuntu` in `ID_LIKE`, e.g. Mint, Pop!_OS)
-  use Ondřej Surý's `ppa:ondrej/php`; Debian uses the deb.sury.org repo with a keyring under `/etc/apt/keyrings/sury-php.gpg`
+  use Ondřej Surý's `ppa:ondrej/php`, and Debian uses the deb.sury.org repo with a keyring under `/etc/apt/keyrings/sury-php.gpg`
   and a `[signed-by=...]` source list pinned to `$VERSION_CODENAME`. Other distros get a clean error. Default package set is
-  `phpX.Y-cli phpX.Y-common phpX.Y-fpm`; `--minimal` drops fpm and `--with curl,mbstring` appends `phpX.Y-<ext>`. Accepts
-  explicit `X.Y` or `latest` (resolved via `apt-cache` once the repo is configured); patch levels like `8.2.13` are rejected.
+  `phpX.Y-cli phpX.Y-common phpX.Y-fpm`, where `--minimal` drops fpm and `--with curl,mbstring` appends `phpX.Y-<ext>`. Accepts
+  explicit `X.Y` or `latest` (resolved via `apt-cache` once the repo is configured), and patch levels like `8.2.13` are rejected.
   Idempotent: reports and exits if the version is already present. After installing it defensively registers the `php`
   alternative if the package didn't, then offers to switch (`--use` auto-switches). `--print` is a dependency-free, CI-safe
   dry-run that prints the repo and package list without touching the system.
@@ -184,7 +184,7 @@ is [SemVer](https://semver.org/).
 ### Security
 
 - `phpvm install` keeps `apt`/`add-apt-repository` under a normal password-gated `sudo`. The passwordless sudoers rule stays
-  scoped to `update-alternatives --set` only; install never widens it.
+  scoped to `update-alternatives --set` only, and install never widens it.
 
 ---
 
@@ -213,7 +213,7 @@ is [SemVer](https://semver.org/).
 
 - `install.sh` prompts were silently skipped under `curl ... | sudo bash` because piping replaces stdin with the pipe,
   making `[[ -t 0 ]]` return false even when a real terminal is attached. All interactivity checks now use
-  `{ true < /dev/tty; } 2>/dev/null` to detect a controlling terminal instead of testing stdin, and all `read` calls
+  `(true < /dev/tty) 2>/dev/null` to detect a controlling terminal instead of testing stdin, and all `read` calls
   redirect from `/dev/tty` directly. The one-line installer is now fully interactive, same prompts as running
   `bash install.sh` locally. Truly headless environments (CI, `nohup`, no controlling tty) still fall back to defaults.
 
@@ -233,7 +233,7 @@ is [SemVer](https://semver.org/).
 - One-line remote installer: `install.sh` now self-bootstraps. When invoked without sibling repo files (e.g.
   `curl -fsSL .../install.sh | sudo bash`), it git-clones the repo into a `mktemp -d`, retargets `SCRIPT_DIR` at the
   clone, and continues in the same process so the EXIT trap removes the tmp dir on exit (no `exec`, no orphaned clone).
-  `PHPVM_REMOTE` and `PHPVM_REF` env vars override the default repo URL and ref (`main`); falls back to a default-branch
+  `PHPVM_REMOTE` and `PHPVM_REF` env vars override the default repo URL and ref (`main`), falling back to a default-branch
   clone + `git fetch origin <ref> && checkout FETCH_HEAD` when `--branch <ref>` doesn't match a branch (so tags/SHAs
   work). Hard-fails with a clear message when `git` is missing.
 - `phpvm --doctor`: full diagnostic that checks CLI install, PHP runtimes, composer, PHP-FPM units, sudoers rule, shell
@@ -256,13 +256,13 @@ is [SemVer](https://semver.org/).
 - Installer + GUI visual presentation polished: new box-drawing styles, clearer status labels in the GTK window,
   refactored icon-install feedback. **Restart FPM** button now sits to the left of **Switch** in the row so the
   destructive-looking action isn't the primary target.
-- `install.sh` autostart heredoc deduplicated into a single `AUTOSTART_CONTENT` template; the root and non-root branches
+- `install.sh` autostart heredoc deduplicated into a single `AUTOSTART_CONTENT` template, with the root and non-root branches
   differ only by the write wrapper (`tee` under `sudo -u` vs plain redirect).
 - `shell/php-auto.zsh` and `shell/php-auto.fish` headers now document both `/etc/phpvm/` (system) and `~/.phpvm/` (user)
   install paths, matching the bash hook.
 - `phpvm-gui.py` docstring clarifies that **Ayatana** AppIndicator3 is preferred and legacy AppIndicator3 is accepted as
   a fallback.
-- `tests/local-compat.sh` aligned with CI; Ubuntu 18.04 dropped from the local matrix (CI never tested it; README only
+- `tests/local-compat.sh` aligned with CI, where Ubuntu 18.04 was dropped from the local matrix (CI never tested it, and the README only
   claims 20/22/24).
 - `CONTRIBUTING.md`: real repo URL, Bash target tightened to `4.3+` (`local -n` is required), matching `phpvm.sh`'s
   guard.
@@ -272,9 +272,9 @@ is [SemVer](https://semver.org/).
   `shell/php-auto.bash`. Every `run:` block now uses `set -euo pipefail` so the changelog `awk` pipeline (and friends)
   can't silently produce empty output. `actions/checkout` and `softprops/action-gh-release` are pinned to commit SHAs
   with version comments for supply-chain hardening. Dropped the `shellcheck ... || true` step (lint that always passes is
-  theater; lint lives in `compat.yml` now). Dropped the `files:` upload list and `fetch-depth: 0`; the installer and
+  theater, and lint lives in `compat.yml` now). Dropped the `files:` upload list and `fetch-depth: 0`, where the installer and
   `phpvm --self-update` both bootstrap via `git clone`, never via release artifacts, so the per-file uploads were
-  decorative; GitHub's auto-attached source tarball still covers the "I want a versioned download" case.
+  decorative, and GitHub's auto-attached source tarball still covers the "I want a versioned download" case.
 - `.github/workflows/compat.yml`: `shellcheck` is now a real gate. Removed the `|| true` that silently swallowed every
   warning, hoisted lint into a dedicated `lint` job so it runs once instead of three times per matrix OS, and expanded
   the lint scope to include `tests/test_cli.sh` and `tests/test_gui.sh`. Split the GUI dependency install into a
@@ -284,11 +284,11 @@ is [SemVer](https://semver.org/).
 
 ### Fixed
 
-- `phpvm.sh` header comment said `v2.1.0` while `VERSION="2.2.0"`; header bumped to v2.2.0.
-- `tests/test_cli.sh` was exercising non-existent subcommands (`list`, `current`, `use`) that the CLI never accepted;
+- `phpvm.sh` header comment said `v2.1.0` while `VERSION="2.2.0"`, and the header was bumped to v2.2.0.
+- `tests/test_cli.sh` was exercising non-existent subcommands (`list`, `current`, `use`) that the CLI never accepted,
   tests only passed because unknown commands return non-zero. Rewritten against the real flags (`--list`, `--current`,
   `--set`), with a regression test that asserts unknown positional `use` is rejected with `Unknown option`.
-- `uninstall.sh` under `sudo` only cleaned the invoking user's autostart, desktop, and icon files; it left
+- `uninstall.sh` under `sudo` only cleaned the invoking user's autostart, desktop, and icon files, leaving
   `~/.local/bin/phpvm{,-gui}`, the `~/.phpvm` hook directory, and the user's shell rc lines untouched. `SUDO_HOME` now
   propagates to `BIN_DIRS`, `HOOK_DIRS`, and the rc-cleanup loop.
 - `set_project_tui` wrote `.php-version` without normalizing the version string or warning when an existing file held a
@@ -316,7 +316,7 @@ is [SemVer](https://semver.org/).
 - Sudo prompts everywhere now carry a labeled `-p` string (`[phpvm] switching PHP, password for %u:`,
   `[phpvm] restarting phpX.Y-fpm, password for %u:`) so users see who's asking when no nopasswd rule is set.
 - Removed `sudo -n` quiet path and the rc=77 "password required" signaling from `do_switch` + `cmd_auto`. Shell-hook
-  auto-switch is now plain `sudo`; passwordless if sudoers is configured, interactive prompt otherwise. Net: 60+ lines
+  auto-switch is now plain `sudo` (passwordless if sudoers is configured, interactive prompt otherwise). Net: 60+ lines
   deleted from `phpvm.sh` and `phpvm-gui.py`.
 - `cmd_auto` quiet mode prints terse stdout (`phpvm: switched to PHP X.Y`) instead of dispatching `notify-send`. GUI
   handles its own notifications via the inline status label.
@@ -336,18 +336,18 @@ is [SemVer](https://semver.org/).
 ### Changed
 
 - Auto-switch from shell hooks (`phpvm --auto --quiet`) now uses `sudo -n`. Without the nopasswd rule the hook no longer
-  hangs on a silent password prompt; it sends a labeled desktop notification telling you what's asking and how to fix
+  hangs on a silent password prompt, sending a labeled desktop notification telling you what's asking and how to fix
   it.
-- `do_switch` failures return rc=77 when password is required; cmd_auto branches on this to show a contextual
+- `do_switch` failures return rc=77 when password is required, and cmd_auto branches on this to show a contextual
   notification instead of a generic "failed to switch".
-- Sudoers glob tightened from `/usr/bin/php*` to `/usr/bin/php[0-9].[0-9]`; the old glob also matched `phpunit`,
+- Sudoers glob tightened from `/usr/bin/php*` to `/usr/bin/php[0-9].[0-9]`, as the old glob also matched `phpunit`,
   `php-config`, etc.
 - `install.sh --upgrade` detects the old `php*` glob and rewrites the sudoers file to the tighter pattern.
 - `phpvm-gui` REFRESH_MS bumped 5s → 15s and per-version SAPI/xdebug/ini lookups are now memoized per session (cleared
   on switch). Was forking PHP for every installed version every 5 seconds.
 - `phpvm-gui` composer detection now shells out to `phpvm --auto --print` first so behavior matches the shell side
   exactly (supports `^`, `~`, ranges, `|`).
-- `install.sh` no longer prompts when stdin isn't a tty (defaults to CLI+GUI, skips sudoers/hook prompts); works under
+- `install.sh` no longer prompts when stdin isn't a tty (defaults to CLI+GUI, skips sudoers/hook prompts), working under
   `curl ... | sudo bash`.
 - `uninstall.sh` cleans both `/usr/local/bin`/`/etc/phpvm` AND `~/.local/bin`/`~/.phpvm` instead of either/or.
 - `install.sh` rewrites `git@host:owner/repo` remote URLs to `https://host/owner/repo` when recording REPO_URL, so
@@ -355,7 +355,7 @@ is [SemVer](https://semver.org/).
 
 ### Fixed
 
-- `do_switch` no longer swallows `update-alternatives` stderr; failure messages reach the user.
+- `do_switch` no longer swallows `update-alternatives` stderr, allowing failure messages to reach the user.
 - `.php-version` parsing now normalizes `php8.2`, `8.2.0`, leading/trailing whitespace to `X.Y`. Was a silent miss
   before.
 - `phpvm --set-project` validates input and prompts before overwriting an existing `.php-version` with a different
