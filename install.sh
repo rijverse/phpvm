@@ -410,35 +410,46 @@ fi
 
 # launch gui immediately after install
 if [[ "$INSTALL_GUI" == "true" ]] && (( INTERACTIVE )); then
-    _DISPLAY="${DISPLAY:-}"
-    _WAYLAND="${WAYLAND_DISPLAY:-}"
-    _DBUS="${DBUS_SESSION_BUS_ADDRESS:-}"
+    # the session vars phpvm-gui (and any terminal it later spawns) actually need.
+    # XDG_RUNTIME_DIR is required for both the Wayland socket and the user dbus,
+    # without which gnome-terminal can't reach its server and AppIndicator can't
+    # render the text label next to its icon.
+    _SESSION_KEYS=(DISPLAY WAYLAND_DISPLAY DBUS_SESSION_BUS_ADDRESS
+                   XDG_RUNTIME_DIR XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
+                   XDG_DATA_DIRS XDG_CONFIG_DIRS XAUTHORITY)
+    declare -A _SESSION_ENV=()
+    for _k in "${_SESSION_KEYS[@]}"; do
+        [[ -n "${!_k:-}" ]] && _SESSION_ENV[$_k]="${!_k}"
+    done
 
-    # sudo strips DISPLAY; recover it from the user's running session
-    if [[ $EUID -eq 0 ]] && [[ -z "$_DISPLAY" ]] && [[ -z "$_WAYLAND" ]]; then
+    # sudo strips session vars; pull them from a user-owned graphical process
+    if [[ $EUID -eq 0 ]]; then
         while IFS= read -r _pid; do
             [[ -r "/proc/$_pid/environ" ]] || continue
             _env=$(tr '\0' '\n' < "/proc/$_pid/environ" 2>/dev/null)
-            _d=$(printf '%s\n' "$_env" | grep '^DISPLAY=' | head -1 | cut -d= -f2)
-            [[ -z "$_d" ]] && continue
-            _DISPLAY="$_d"
-            _DBUS=$(printf '%s\n' "$_env" | grep '^DBUS_SESSION_BUS_ADDRESS=' | head -1 | cut -d= -f2-)
+            # only consider processes that are actually attached to a graphical session
+            printf '%s\n' "$_env" | grep -qE '^(DISPLAY|WAYLAND_DISPLAY)=' || continue
+            for _k in "${_SESSION_KEYS[@]}"; do
+                _v=$(printf '%s\n' "$_env" | grep "^${_k}=" | head -1 | cut -d= -f2-)
+                [[ -n "$_v" ]] && _SESSION_ENV[$_k]="$_v"
+            done
             break
-        done < <(pgrep -u "$CURRENT_USER" 2>/dev/null | head -10)
+        done < <(pgrep -u "$CURRENT_USER" 2>/dev/null | head -20)
     fi
 
-    if [[ -n "$_DISPLAY" ]] || [[ -n "$_WAYLAND" ]]; then
+    if [[ -n "${_SESSION_ENV[DISPLAY]:-}" ]] || [[ -n "${_SESSION_ENV[WAYLAND_DISPLAY]:-}" ]]; then
         if python3 -c "import gi" &>/dev/null; then
             echo ""
             info "Starting phpvm-gui..."
+            _env_args=()
+            for _k in "${!_SESSION_ENV[@]}"; do
+                _env_args+=("$_k=${_SESSION_ENV[$_k]}")
+            done
             if [[ $EUID -eq 0 ]]; then
-                sudo -u "$CURRENT_USER" env \
-                    DISPLAY="$_DISPLAY" \
-                    WAYLAND_DISPLAY="$_WAYLAND" \
-                    DBUS_SESSION_BUS_ADDRESS="$_DBUS" \
+                sudo -u "$CURRENT_USER" env "${_env_args[@]}" \
                     nohup "$BIN_DIR/phpvm-gui" >/dev/null 2>&1 &
             else
-                nohup "$BIN_DIR/phpvm-gui" >/dev/null 2>&1 &
+                env "${_env_args[@]}" nohup "$BIN_DIR/phpvm-gui" >/dev/null 2>&1 &
             fi
             disown
             success "phpvm-gui started"
